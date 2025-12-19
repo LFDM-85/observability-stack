@@ -1,0 +1,102 @@
+groups:
+  - name: instance_alerts
+    interval: 30s
+    rules:
+      - alert: InstanceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Instância {{ $labels.instance }} está down"
+          description: "A instância {{ $labels.instance }} do job {{ $labels.job }} está inacessível há mais de 1 minuto."
+
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Alto uso de CPU em {{ $labels.instance }}"
+          description: "CPU está em {{ $value }}% na instância {{ $labels.instance }}"
+
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Alto uso de memória em {{ $labels.instance }}"
+          description: "Memória está em {{ $value }}% na instância {{ $labels.instance }}"
+
+      - alert: DiskSpaceRunningOut
+        expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) * 100 < 15
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Espaço em disco crítico em {{ $labels.instance }}"
+          description: "Apenas {{ $value }}% de espaço livre no disco {{ $labels.mountpoint }} em {{ $labels.instance }}"
+
+      - alert: ContainerDown
+        expr: absent(container_last_seen{name=~".+"})
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} não está sendo visto"
+          description: "O container {{ $labels.name }} não está respondendo há mais de 2 minutos"
+
+      - alert: HighContainerMemory
+        expr: (container_memory_usage_bytes / container_spec_memory_limit_bytes) * 100 > 90
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} com alto uso de memória"
+          description: "Container {{ $labels.name }} está usando {{ $value }}% da memória alocada"
+
+  - name: prometheus_alerts
+    interval: 30s
+    rules:
+      - alert: PrometheusConfigReloadFailed
+        expr: prometheus_config_last_reload_successful == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Falha ao recarregar configuração do Prometheus"
+          description: "Prometheus {{ $labels.instance }} falhou ao recarregar a configuração"
+
+      - alert: PrometheusTooManyRestarts
+        expr: changes(process_start_time_seconds{job="prometheus"}[15m]) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Prometheus reiniciando frequentemente"
+          description: "Prometheus teve {{ $value }} reinicializações nos últimos 15 minutos"
+
+  - name: loki_alerts
+    interval: 30s
+    rules:
+      - alert: LokiRequestErrors
+        expr: 100 * sum(rate(loki_request_duration_seconds_count{status_code=~"5.."}[5m])) by (namespace, job, route) / sum(rate(loki_request_duration_seconds_count[5m])) by (namespace, job, route) > 5
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Taxa de erros alta no Loki"
+          description: "Loki está retornando {{ $value }}% de erros 5xx na rota {{ $labels.route }}"
+
+  - name: storage_alerts
+    interval: 1h
+    rules:
+      - alert: PrometheusStorageAlmostFull
+        expr: prometheus_tsdb_storage_blocks_bytes / 10737418240 > 0.9
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Armazenamento do Prometheus quase cheio"
+          description: "Prometheus está usando {{ $value }}% do limite de 10GB configurado"
