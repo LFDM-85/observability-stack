@@ -5,9 +5,9 @@ A complete, Docker-based observability stack featuring Prometheus, Grafana, Loki
 ## 🚀 Features
 
 - **Prometheus**: Metrics collection and storage.
-- **Grafana**: Visualization and dashboards.
+- **Grafana**: Visualization with **automated dashboards** for System, Docker, and Prometheus.
 - **Loki**: Log aggregation system.
-- **Alloy**: OpenTelemetry Collector distribution for unified telemetry.
+- **Alloy**: OpenTelemetry Collector distribution with **cAdvisor integration** for deep container monitoring.
 - **Alertmanager**: Alert handling and routing.
 - **Webhook Adapter**: Custom adapter to bridge alerts to Microsoft Teams and Discord.
 
@@ -19,16 +19,19 @@ A complete, Docker-based observability stack featuring Prometheus, Grafana, Loki
 ## 🛠️ Setup
 
 1.  **Clone the repository:**
+
     ```bash
     git clone <repository-url>
     cd observability-stack
     ```
 
 2.  **Run the setup script:**
-    The included `setup.sh` script automates the initialization process, checks for required files, and helps you configure your environment.
+    The included `setup.sh` script automates the initialization process, checks for required files, **downloads popular Grafana dashboards**, and helps you configure your environment.
+
     ```bash
     ./setup.sh
     ```
+
     Follow the on-screen prompts to build and start the stack.
 
 3.  **Configure Webhooks (Optional):**
@@ -42,12 +45,22 @@ A complete, Docker-based observability stack featuring Prometheus, Grafana, Loki
     docker-compose restart webhook-adapter
     ```
 
-## 🤖 Monitoring Automation
+## 📊 Automated Dashboards
+
+The stack automatically provisions the following popular dashboards:
+
+- **Node Exporter Full**: CPU, RAM, Disk, and Network for Linux hosts.
+- **Docker Containers**: Detailed performance metrics per container (**cAdvisor**).
+- **Prometheus Overview**: Health and performance of the Prometheus server.
+- **Grafana Alloy**: Monitoring for the telemetry collector.
+
+## 🤖 Monitoring Remote Hosts
 
 This stack includes tools to automate the deployment of Node Exporter to remote Linux servers and automatically configure Prometheus to monitor them.
 
 1.  **Prepare the Host List:**
     Edit the `hosts.txt` file and add the IP addresses of the servers you want to monitor (one per line).
+
     ```text
     192.168.1.50
     10.0.0.12
@@ -55,10 +68,12 @@ This stack includes tools to automate the deployment of Node Exporter to remote 
 
 2.  **Run the Deployment:**
     Run the deployment script to install Node Exporter on the targets and update the monitoring config:
+
     ```bash
     python scripts/deploy_monitor.py
     ```
-    *Note: The script attempts to SSH into the targets using the current user's SSH keys. Ensure you have passwordless SSH or `ssh-agent` configured for the target machines.*
+
+    _Note: The script attempts to SSH into the targets using the current user's SSH keys. Ensure you have passwordless SSH or `ssh-agent` configured for the target machines._
 
 3.  **Automatic Discovery:**
     Prometheus watches for changes in `prometheus/targets.json`. New targets will appear in Prometheus and Grafana automatically without restarting the stack.
@@ -67,13 +82,13 @@ This stack includes tools to automate the deployment of Node Exporter to remote 
 
 Once the stack is up and running, you can access the services at the following URLs:
 
-| Service | URL | Default Credentials |
-|:---|:---|:---|
-| **Grafana** | `http://localhost:3000` | `admin` / `admin` |
-| **Prometheus** | `http://localhost:9090` | N/A |
-| **Alertmanager** | `http://localhost:9093` | N/A |
-| **Loki** | `http://localhost:3100` | N/A |
-| **Alloy** | `http://localhost:12345` | N/A |
+| Service          | URL                      | Default Credentials |
+| :--------------- | :----------------------- | :------------------ |
+| **Grafana**      | `http://localhost:3000`  | `admin` / `admin`   |
+| **Prometheus**   | `http://localhost:9090`  | N/A                 |
+| **Alertmanager** | `http://localhost:9093`  | N/A                 |
+| **Loki**         | `http://localhost:3100`  | N/A                 |
+| **Alloy**        | `http://localhost:12345` | N/A                 |
 
 ## 🩺 Diagnosis
 
@@ -90,10 +105,11 @@ This script will verify container status, check service health endpoints, and pr
 ```text
 observability-stack/
 ├── alertmanager/       # Alertmanager configuration
-├── alloy/              # Alloy configuration
-├── grafana/            # Grafana provisioning
+├── alloy/              # Alloy configuration (with cAdvisor)
+├── grafana/            # Grafana provisioning & dashboards
 ├── loki/               # Loki configuration
 ├── prometheus/         # Prometheus configuration & rules
+├── scripts/            # Automation & dashboard scripts
 ├── webhook-adapter/    # Python-based webhook adapter
 ├── .env                # Environment variables (created by setup.sh)
 ├── docker-compose.yml  # Stack definition
