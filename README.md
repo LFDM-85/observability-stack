@@ -42,6 +42,27 @@ A complete, Docker-based observability stack featuring Prometheus, Grafana, Loki
     docker-compose restart webhook-adapter
     ```
 
+## 🤖 Monitoring Automation
+
+This stack includes tools to automate the deployment of Node Exporter to remote Linux servers and automatically configure Prometheus to monitor them.
+
+1.  **Prepare the Host List:**
+    Edit the `hosts.txt` file and add the IP addresses of the servers you want to monitor (one per line).
+    ```text
+    192.168.1.50
+    10.0.0.12
+    ```
+
+2.  **Run the Deployment:**
+    Run the deployment script to install Node Exporter on the targets and update the monitoring config:
+    ```bash
+    python scripts/deploy_monitor.py
+    ```
+    *Note: The script attempts to SSH into the targets using the current user's SSH keys. Ensure you have passwordless SSH or `ssh-agent` configured for the target machines.*
+
+3.  **Automatic Discovery:**
+    Prometheus watches for changes in `prometheus/targets.json`. New targets will appear in Prometheus and Grafana automatically without restarting the stack.
+
 ## 📊 Accessing Services
 
 Once the stack is up and running, you can access the services at the following URLs:

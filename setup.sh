@@ -55,6 +55,23 @@ check_file "alertmanager/alertmanager.yml" || ((missing_count++))
 check_file "webhook-adapter/Dockerfile" || ((missing_count++))
 check_file "webhook-adapter/teams-webhook-adapter.py" || ((missing_count++))
 
+# Automation Scripts & Configs
+if [ ! -f "grafana/dashboards/node_exporter_full.json" ]; then
+    echo -e "${BLUE}📥 Downloading Grafana dashboards...${NC}"
+    # Use python if available, otherwise warn
+    if command -v python3 &> /dev/null; then
+        python3 scripts/download_dashboard.py
+    elif command -v python &> /dev/null; then
+        python scripts/download_dashboard.py
+    else
+        echo -e "${YELLOW}⚠️  Python not found. Skipping dashboard download.${NC}"
+        ((missing_count++))
+    fi
+fi
+check_file "grafana/dashboards/node_exporter_full.json" || ((missing_count++))
+check_file "hosts.txt" || ((missing_count++))
+check_file "prometheus/targets.json" || ((missing_count++))
+
 echo ""
 
 # If files are missing
@@ -79,6 +96,11 @@ if [ $missing_count -ne 0 ]; then
     echo "   └── webhook-adapter/"
     echo "       ├── Dockerfile"
     echo "       └── teams-webhook-adapter.py"
+    echo "   ├── scripts/"
+    echo "   │   ├── deploy_monitor.py"
+    echo "   │   └── download_dashboard.py"
+    echo "   ├── hosts.txt"
+    echo "   └── prometheus/targets.json"
     echo ""
     exit 1
 fi

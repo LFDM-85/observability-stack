@@ -8,6 +8,7 @@ services:
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - ./prometheus/alerts:/etc/prometheus/alerts
+      - ./prometheus/targets.json:/etc/prometheus/targets.json
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
