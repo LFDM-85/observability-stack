@@ -113,7 +113,12 @@ def ssh_command(ip, cmd, check=False):
     # Adjust 'root' to your default user if needed.
     
     try:
-        result = subprocess.run(ssh_cmd, capture_output=True, text=True)
+        result = subprocess.run(
+    ssh_cmd,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE,
+    universal_newlines=True
+)
         if check and result.returncode != 0:
             print(f"Error running command on {ip}: {result.stderr}")
             return None
