@@ -4,7 +4,7 @@ A complete, Docker-based observability stack featuring Prometheus, Grafana, Loki
 
 ## 🚀 Features
 
-- **Prometheus**: Metrics collection and storage.
+- **Prometheus**: Metrics collection, storage, and **proactive alerting**.
 - **Grafana**: Visualization with **automated dashboards** for System, Docker, and Prometheus.
 - **Loki**: Log aggregation system.
 - **Alloy**: OpenTelemetry Collector distribution with **cAdvisor integration** for deep container monitoring.
@@ -45,14 +45,23 @@ A complete, Docker-based observability stack featuring Prometheus, Grafana, Loki
     docker-compose restart webhook-adapter
     ```
 
-## 📊 Automated Dashboards
+## 📊 Automated Dashboards & Alerts
 
-The stack automatically provisions the following popular dashboards:
+The stack automatically provisions popular dashboards and matching alerting rules:
+
+### Dashboards
 
 - **Node Exporter Full**: CPU, RAM, Disk, and Network for Linux hosts.
 - **Docker Containers**: Detailed performance metrics per container (**cAdvisor**).
 - **Prometheus Overview**: Health and performance of the Prometheus server.
 - **Grafana Alloy**: Monitoring for the telemetry collector.
+
+### Proactive Alerts
+
+- **Predictive Disk Monitoring**: Alerts when a disk is projected to be full in 24h based on current trends.
+- **Resource Limits**: Alerts for high CPU/Memory usage at both host and container levels.
+- **System Load**: Detects high Load Average relative to the number of CPU cores.
+- **Container Health**: Monitors for containers stopping or crash-looping.
 
 ## 🤖 Monitoring Remote Hosts
 
