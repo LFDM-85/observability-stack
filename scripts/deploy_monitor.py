@@ -109,30 +109,35 @@ WantedBy=multi-user.target' | sudo tee /etc/systemd/system/node_exporter.service
 
 def ssh_command(ip, cmd, check=False):
     import subprocess
-    
+
     if ip in ("127.0.0.1", "localhost"):
         # Executa localmente
         try:
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            result = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            stdout = result.stdout.decode('utf-8')
+            stderr = result.stderr.decode('utf-8')
             if check and result.returncode != 0:
-                print(f"Error running command locally: {result.stderr}")
+                print(f"Error running command locally: {stderr}")
                 return None
-            return result.stdout
+            return stdout
         except Exception as e:
             print(f"Local exception for {ip}: {e}")
             return None
     else:
-        # Mantém SSH para hosts remotos
+        # Executa remoto via SSH
         ssh_cmd = ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=5", f"root@{ip}", cmd]
         try:
-            result = subprocess.run(ssh_cmd, capture_output=True, text=True)
+            result = subprocess.run(ssh_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            stdout = result.stdout.decode('utf-8')
+            stderr = result.stderr.decode('utf-8')
             if check and result.returncode != 0:
-                print(f"Error running command on {ip}: {result.stderr}")
+                print(f"Error running command on {ip}: {stderr}")
                 return None
-            return result.stdout
+            return stdout
         except Exception as e:
             print(f"SSH exception for {ip}: {e}")
             return None
+
 
 def main():
     hosts = load_hosts()
