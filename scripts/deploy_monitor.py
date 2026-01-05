@@ -108,17 +108,21 @@ WantedBy=multi-user.target' | sudo tee /etc/systemd/system/node_exporter.service
     return True
 
 def ssh_command(ip, cmd, check=False):
-    ssh_cmd = ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=5", f"root@{ip}", cmd]
-    # Note: Assumes root access or user with passwordless sudo. 
-    # Adjust 'root' to your default user if needed.
-    
+    ssh_cmd = [
+        "ssh",
+        "-o", "StrictHostKeyChecking=no",
+        "-o", "ConnectTimeout=5",
+        f"root@{ip}",
+        cmd
+    ]
+
     try:
         result = subprocess.run(
-    ssh_cmd,
-    stdout=subprocess.PIPE,
-    stderr=subprocess.PIPE,
-    universal_newlines=True
-)
+            ssh_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True
+        )
         if check and result.returncode != 0:
             print(f"Error running command on {ip}: {result.stderr}")
             return None
