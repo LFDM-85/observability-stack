@@ -20,6 +20,17 @@ prometheus.scrape "alloy" {
   forward_to = [prometheus.remote_write.default.receiver]
 }
 
+// Scrape métricas do cAdvisor (Docker)
+prometheus.exporter.cadvisor "docker" {
+  docker_host = "unix:///var/run/docker.sock"
+  storage_driver_buffer_duration = "1s"
+}
+
+prometheus.scrape "cadvisor" {
+  targets    = prometheus.exporter.cadvisor.docker.targets
+  forward_to = [prometheus.remote_write.default.receiver]
+}
+
 // Scrape métricas de containers Docker
 discovery.docker "containers" {
   host = "unix:///var/run/docker.sock"
