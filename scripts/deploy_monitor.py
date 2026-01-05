@@ -17,7 +17,6 @@ def load_hosts():
         return []
     with open(HOSTS_FILE, 'r') as f:
         lines = f.readlines()
-    # Filter comments and empty lines
     return [line.strip() for line in lines if line.strip() and not line.strip().startswith('#')]
 
 def load_targets():
@@ -30,6 +29,7 @@ def load_targets():
         return []
 
 def save_targets(targets):
+    os.makedirs(os.path.dirname(TARGETS_FILE), exist_ok=True)
     with open(TARGETS_FILE, 'w') as f:
         json.dump(targets, f, indent=2)
 
@@ -42,14 +42,13 @@ def is_target_configured(ip, targets):
 
 def add_target(ip, targets):
     target_str = f"{ip}:9100"
-    # Check if we have a group for automatic discovery
     found = False
     for t in targets:
         if t.get('labels', {}).get('job') == 'node_exporter_auto':
-             if target_str not in t['targets']:
-                 t['targets'].append(target_str)
-             found = True
-             break
+            if target_str not in t['targets']:
+                t['targets'].append(target_str)
+            found = True
+            break
     
     if not found:
         targets.append({
@@ -60,6 +59,32 @@ def add_target(ip, targets):
             }
         })
     return targets
+
+def ssh_command(ip, cmd, check=False):
+    """Execute command locally or via SSH"""
+    if ip in ("127.0.0.1", "localhost"):
+        # Executar localmente
+        try:
+            result = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            if check and result.returncode != 0:
+                print(f"[{ip}] Error: {result.stderr.strip()}")
+                return None
+            return result.stdout
+        except Exception as e:
+            print(f"[{ip}] Exception: {e}")
+            return None
+    else:
+        # Executar remotamente via SSH
+        ssh_cmd = ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=5", f"root@{ip}", cmd]
+        try:
+            result = subprocess.run(ssh_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            if check and result.returncode != 0:
+                print(f"[{ip}] SSH Error: {result.stderr.strip()}")
+                return None
+            return result.stdout
+        except Exception as e:
+            print(f"[{ip}] SSH Exception: {e}")
+            return None
 
 def install_node_exporter(ip):
     print(f"[{ip}] Checking/Installing Node Exporter...")
@@ -75,14 +100,12 @@ def install_node_exporter(ip):
     
     # Installation commands
     commands = [
-        f"wget https://github.com/prometheus/node_exporter/releases/download/v{NODE_EXPORTER_VERSION}/node_exporter-{NODE_EXPORTER_VERSION}.linux-amd64.tar.gz",
-        f"tar xvfz node_exporter-{NODE_EXPORTER_VERSION}.linux-amd64.tar.gz",
-        f"sudo mv node_exporter-{NODE_EXPORTER_VERSION}.linux-amd64/node_exporter /usr/local/bin/",
-        "rm -rf node_exporter-*",
-        # Create user
-        "sudo useradd -rs /bin/false node_exporter || true",
-        # Create service file
-        f"""echo '[Unit]
+        f"cd /tmp && wget https://github.com/prometheus/node_exporter/releases/download/v{NODE_EXPORTER_VERSION}/node_exporter-{NODE_EXPORTER_VERSION}.linux-amd64.tar.gz",
+        f"cd /tmp && tar xvfz node_exporter-{NODE_EXPORTER_VERSION}.linux-amd64.tar.gz",
+        f"sudo mv /tmp/node_exporter-{NODE_EXPORTER_VERSION}.linux-amd64/node_exporter /usr/local/bin/",
+        "rm -rf /tmp/node_exporter-*",
+        "sudo useradd -rs /bin/false node_exporter 2>/dev/null || true",
+        """echo '[Unit]
 Description=Node Exporter
 After=network.target
 
@@ -93,77 +116,51 @@ Type=simple
 ExecStart=/usr/local/bin/node_exporter
 
 [Install]
-WantedBy=multi-user.target' | sudo tee /etc/systemd/system/node_exporter.service""",
+WantedBy=multi-user.target' | sudo tee /etc/systemd/system/node_exporter.service > /dev/null""",
         "sudo systemctl daemon-reload",
         "sudo systemctl start node_exporter",
         "sudo systemctl enable node_exporter"
     ]
     
-    for cmd in commands:
-        if not ssh_command(ip, cmd, check=True):
-            print(f"[{ip}] Failed to run: {cmd}")
+    for i, cmd in enumerate(commands):
+        print(f"[{ip}] Step {i+1}/{len(commands)}: Running...")
+        result = ssh_command(ip, cmd, check=True)
+        if result is None:
+            print(f"[{ip}] Installation failed at step {i+1}")
             return False
             
     print(f"[{ip}] Installation successful.")
     return True
-
-def ssh_command(ip, cmd, check=False):
-    import subprocess
-
-    if ip in ("127.0.0.1", "localhost"):
-        # Executa localmente
-        try:
-            result = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            stdout = result.stdout.decode('utf-8')
-            stderr = result.stderr.decode('utf-8')
-            if check and result.returncode != 0:
-                print(f"Error running command locally: {stderr}")
-                return None
-            return stdout
-        except Exception as e:
-            print(f"Local exception for {ip}: {e}")
-            return None
-    else:
-        # Executa remoto via SSH
-        ssh_cmd = ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=5", f"root@{ip}", cmd]
-        try:
-            result = subprocess.run(ssh_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            stdout = result.stdout.decode('utf-8')
-            stderr = result.stderr.decode('utf-8')
-            if check and result.returncode != 0:
-                print(f"Error running command on {ip}: {stderr}")
-                return None
-            return stdout
-        except Exception as e:
-            print(f"SSH exception for {ip}: {e}")
-            return None
-
 
 def main():
     hosts = load_hosts()
     targets = load_targets()
     
     if not hosts:
-        print("No hosts found in hosts.txt")
+        print("❌ No hosts found in hosts.txt")
         return
 
+    print(f"📋 Found {len(hosts)} host(s) to process\n")
+    
     updated = False
     for ip in hosts:
         if not is_target_configured(ip, targets):
-            print(f"Processing new host: {ip}")
+            print(f"\n▶️  Processing new host: {ip}")
             if install_node_exporter(ip):
                 targets = add_target(ip, targets)
                 updated = True
+                print(f"✅ Host {ip} configured successfully")
             else:
-                print(f"Skipping configuration for {ip} due to installation failure.")
+                print(f"❌ Failed to configure {ip}")
         else:
-            print(f"Host {ip} already configured.")
+            print(f"✓ Host {ip} already configured.")
 
     if updated:
         save_targets(targets)
-        print(f"Updated {TARGETS_FILE}. Prometheus should pick up changes automatically.")
+        print(f"\n✅ Updated {TARGETS_FILE}")
+        print("📊 Prometheus should pick up changes automatically")
     else:
-        print("No changes made to targets.")
+        print("\n⚠️  No changes made to targets.")
 
 if __name__ == "__main__":
     main()
