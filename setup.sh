@@ -72,6 +72,12 @@ check_file "grafana/dashboards/node_exporter_full.json" || ((missing_count++))
 check_file "hosts.txt" || ((missing_count++))
 check_file "prometheus/targets.json" || ((missing_count++))
 
+# Fix dashboards datasource variable
+if [ -f "scripts/fix_dashboards.py" ]; then
+    echo -e "${BLUE}🔧 Normalizing dashboard datasource UIDs...${NC}"
+    python3 scripts/fix_dashboards.py
+fi
+
 echo ""
 
 # If files are missing

@@ -3,6 +3,7 @@ import os
 import subprocess
 import sys
 import time
+from fix_dashboards import fix_dashboards
 
 # Paths
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -177,6 +178,10 @@ def main():
         print("📊 Prometheus should pick up changes automatically")
     else:
         print("\n⚠️  No changes made to targets.")
+
+    # Always ensure dashboards are correctly configured
+    print("\n🔧 Checking Grafana dashboards...")
+    fix_dashboards()
 
 if __name__ == "__main__":
     main()
