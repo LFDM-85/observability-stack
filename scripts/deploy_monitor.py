@@ -62,12 +62,13 @@ def add_target(ip, targets):
 
 def ssh_command(ip, cmd, check=False):
     """Execute command locally or via SSH"""
-    if ip in ("127.0.0.1", "localhost"):
+    local_ips = ("127.0.0.1", "localhost", "192.168.1.148")
+    if ip in local_ips:
         # Executar localmente
         try:
             result = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             if check and result.returncode != 0:
-                print(f"[{ip}] Error: {result.stderr.strip()}")
+                print(f"[{ip}] Error: {result.stderr.strip() or 'Command failed'}")
                 return None
             return result.stdout
         except Exception as e:
@@ -89,15 +90,31 @@ def ssh_command(ip, cmd, check=False):
 def install_node_exporter(ip):
     print(f"[{ip}] Checking/Installing Node Exporter...")
     
+    # Check if binary exists
+    check_bin_cmd = "ls /usr/local/bin/node_exporter"
+    res_bin = ssh_command(ip, check_bin_cmd)
+    
     # Check if already running
-    check_cmd = "systemctl is-active node_exporter"
-    res = ssh_command(ip, check_cmd)
-    if res and res.strip() == "active":
-        print(f"[{ip}] Node Exporter is already active.")
+    check_svc_cmd = "systemctl is-active node_exporter"
+    res_svc = ssh_command(ip, check_svc_cmd)
+    
+    if (res_bin and "/usr/local/bin/node_exporter" in res_bin) or (res_svc and res_svc.strip() == "active"):
+        print(f"[{ip}] Node Exporter is already installed/active.")
+        # Ensure it's started and enabled if it exists but is not active
+        if not (res_svc and res_svc.strip() == "active"):
+            print(f"[{ip}] Starting and enabling existing Node Exporter...")
+            ssh_command(ip, "sudo systemctl daemon-reload && sudo systemctl start node_exporter && sudo systemctl enable node_exporter", check=True)
         return True
 
     print(f"[{ip}] Installing Node Exporter v{NODE_EXPORTER_VERSION}...")
     
+    # Check for wget and sudo if running locally
+    if ip in ("127.0.0.1", "localhost", "192.168.1.148"):
+        res_wget = ssh_command(ip, "wget --version")
+        if not res_wget:
+            print(f"[{ip}] Error: 'wget' is not installed or not in PATH. Please install it.")
+            return False
+            
     # Installation commands
     commands = [
         f"cd /tmp && wget https://github.com/prometheus/node_exporter/releases/download/v{NODE_EXPORTER_VERSION}/node_exporter-{NODE_EXPORTER_VERSION}.linux-amd64.tar.gz",
