@@ -29,27 +29,12 @@ prometheus.scrape "host" {
   forward_to = [prometheus.remote_write.default.receiver]
 }
 
-// Scrape métricas do cAdvisor (Docker)
-prometheus.exporter.cadvisor "docker" {
-  docker_host = "unix:///var/run/docker.sock"
-}
-
-prometheus.scrape "cadvisor" {
-  targets    = prometheus.exporter.cadvisor.docker.targets
-  forward_to = [prometheus.remote_write.default.receiver]
-}
-
-// Scrape métricas de containers Docker
+// Scrape métricas de containers Docker (Apenas logs via discovery)
 discovery.docker "containers" {
   host = "unix:///var/run/docker.sock"
 }
 
-prometheus.scrape "docker" {
-  targets    = discovery.docker.containers.targets
-  forward_to = [prometheus.remote_write.default.receiver]
-}
-
-// Coletar logs de containers Docker
+// Coletar logs de containers Docker (Loki)
 loki.source.docker "containers" {
   host       = "unix:///var/run/docker.sock"
   targets    = discovery.docker.containers.targets
