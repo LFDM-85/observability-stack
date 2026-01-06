@@ -63,13 +63,24 @@ def add_target(ip, targets):
 
 def ssh_command(ip, cmd, check=False):
     """Execute command locally or via SSH"""
-    local_ips = ("127.0.0.1", "localhost", "192.168.1.148")
-    if ip in local_ips:
+    # Loopback is always local
+    is_loopback = ip in ("127.0.0.1", "localhost")
+    # Specific IP is only local if we are on a Linux-like system
+    # (Or if the user explicitly wants to run locally, but usually it's for remote Linux)
+    is_special_local = (ip == "192.168.1.148" and os.name != 'nt')
+    
+    if is_loopback or is_special_local:
         # Executar localmente
         try:
+            # On Windows, we should translate some basic things or just fail if it's a linux cmd
+            if os.name == 'nt' and not is_loopback:
+                print(f"[{ip}] Warning: Running Linux commands on Windows might fail.")
+            
             result = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
             if check and result.returncode != 0:
-                print(f"[{ip}] Error: {result.stderr.strip() or 'Command failed'}")
+                # Silêncio para comandos de check, erro para comandos de ação
+                if not cmd.startswith('ls ') and not cmd.startswith('systemctl is-active'):
+                    print(f"[{ip}] Error: {result.stderr.strip() or 'Command failed'}")
                 return None
             return result.stdout
         except Exception as e:
@@ -78,14 +89,19 @@ def ssh_command(ip, cmd, check=False):
     else:
         # Executar remotamente via SSH
         ssh_cmd = ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=5", f"root@{ip}", cmd]
+        # If on Windows, we might need to ensure ssh is available, but usually it is in modern Win10/11
         try:
             result = subprocess.run(ssh_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
             if check and result.returncode != 0:
-                print(f"[{ip}] SSH Error: {result.stderr.strip()}")
+                # Only show error if not a check command
+                if not cmd.startswith('ls ') and not cmd.startswith('systemctl is-active'):
+                    print(f"[{ip}] SSH Error: {result.stderr.strip()}")
                 return None
             return result.stdout
         except Exception as e:
-            print(f"[{ip}] SSH Exception: {e}")
+            if not cmd.startswith('ls ') and not cmd.startswith('systemctl is-active'):
+                print(f"[{ip}] SSH Connection Error: {e}")
+                print(f"[{ip}] TIP: Ensure SSH is enabled and authorized_keys is configured for root.")
             return None
 
 def install_node_exporter(ip):
