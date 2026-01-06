@@ -66,7 +66,7 @@ def add_target(ip, targets):
     target_str = f"{ip}:9100"
     found = False
     for t in targets:
-        if t.get('labels', {}).get('job') == 'node_exporter_auto':
+        if t.get('labels', {}).get('job') == 'remote_hosts':
             if target_str not in t['targets']:
                 t['targets'].append(target_str)
             found = True
@@ -76,7 +76,7 @@ def add_target(ip, targets):
         targets.append({
             "targets": [target_str],
             "labels": {
-                "job": "node_exporter_auto",
+                "job": "remote_hosts",
                 "env": "production"
             }
         })

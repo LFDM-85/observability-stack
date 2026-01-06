@@ -3,38 +3,33 @@ global:
   evaluation_interval: 15s
 
 scrape_configs:
-  - job_name: 'prometheus'
+  # All internal monitoring stack services in one job
+  - job_name: 'monitoring_stack'
     static_configs:
-      - targets: ['localhost:9090']
-
-  - job_name: 'alloy'
-    static_configs:
-      - targets: ['alloy:12345']
-
-  - job_name: 'loki'
-    static_configs:
-      - targets: ['loki:3100']
-
-  - job_name: 'grafana'
-    static_configs:
-      - targets: ['grafana:3000']
-
-  - job_name: 'node_exporter'
-    static_configs:
-      - targets: ['node-exporter:9100']
-
-  - job_name: 'cadvisor'
-    static_configs:
-      - targets: ['cadvisor:8080']
+      - targets:
+          - 'prometheus:9090'
+          - 'alloy:12345'
+          - 'loki:3100'
+          - 'grafana:3000'
+          - 'node-exporter:9100'
+          - 'cadvisor:8080'
+        labels:
+          env: 'local'
     relabel_configs:
-      - target_label: instance
-        replacement: 'node-exporter:9100'
+      # Set instance label to service name for better identification
+      - source_labels: [__address__]
+        regex: '([^:]+):.*'
+        target_label: service
+        replacement: '$1'
 
-
-  - job_name: 'node_exporter_auto'
+  # Remote hosts (auto-discovered via deploy script)
+  - job_name: 'remote_hosts'
     file_sd_configs:
       - files:
         - '/etc/prometheus/targets.json'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
 
 rule_files:
   - "./alerts/alerts.yml"
