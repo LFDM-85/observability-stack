@@ -143,7 +143,7 @@ def install_node_exporter(ip):
     
     if res_bin and "/usr/local/bin/node_exporter" in res_bin:
         print(f"[{ip}] Node Exporter binary found, but service not active. Starting and enabling...")
-        ssh_command(ip, "sudo systemctl daemon-reload && sudo systemctl start node_exporter && sudo systemctl enable node_exporter", check=True)
+        ssh_command(ip, "systemctl daemon-reload && systemctl start node_exporter && systemctl enable node_exporter", check=True)
         return True
 
     print(f"[{ip}] Installing Node Exporter v{NODE_EXPORTER_VERSION}...")
@@ -158,9 +158,9 @@ def install_node_exporter(ip):
     commands = [
         f"cd /tmp && wget -q https://github.com/prometheus/node_exporter/releases/download/v{NODE_EXPORTER_VERSION}/node_exporter-{NODE_EXPORTER_VERSION}.linux-amd64.tar.gz",
         f"cd /tmp && tar xvfz node_exporter-{NODE_EXPORTER_VERSION}.linux-amd64.tar.gz",
-        f"sudo mv /tmp/node_exporter-{NODE_EXPORTER_VERSION}.linux-amd64/node_exporter /usr/local/bin/",
+        f"mv /tmp/node_exporter-{NODE_EXPORTER_VERSION}.linux-amd64/node_exporter /usr/local/bin/",
         "rm -rf /tmp/node_exporter-*",
-        "sudo useradd -rs /bin/false node_exporter 2>/dev/null || true",
+        "useradd -rs /bin/false node_exporter 2>/dev/null || true",
         """echo '[Unit]
 Description=Node Exporter
 After=network.target
@@ -172,10 +172,10 @@ Type=simple
 ExecStart=/usr/local/bin/node_exporter
 
 [Install]
-WantedBy=multi-user.target' | sudo tee /etc/systemd/system/node_exporter.service > /dev/null""",
-        "sudo systemctl daemon-reload",
-        "sudo systemctl start node_exporter",
-        "sudo systemctl enable node_exporter"
+WantedBy=multi-user.target' | tee /etc/systemd/system/node_exporter.service > /dev/null""",
+        "systemctl daemon-reload",
+        "systemctl start node_exporter",
+        "systemctl enable node_exporter"
     ]
     
     for i, cmd in enumerate(commands):
@@ -312,9 +312,11 @@ def main():
             else:
                 results.append((ip, 'new_skipped_health'))
         else:
-            print(f"✓ Host {ip} already configured.")
+            print(f"❌ Failed to install Node Exporter on {ip}")
+            results.append((ip, 'new_failed'))
 
-    if updated:
+    # Save targets if there were changes
+    if changes_made:
         save_targets(targets)
         print(f"\n✅ Updated {TARGETS_FILE}")
         print("📊 Prometheus should pick up changes automatically")
@@ -324,6 +326,34 @@ def main():
     # Always ensure dashboards are correctly configured
     print("\n🔧 Checking Grafana dashboards...")
     fix_dashboards()
+
+    # Display summary
+    print("\n" + "="*50)
+    print("📊 Deployment Summary:")
+    print("="*50)
+    for ip, status in results:
+        status_icons = {
+            'skipped': '⏭️',
+            'ssh_failed': '✗',
+            'configured_healthy': '✓',
+            'configured_unhealthy': '⚠️',
+            'configured_skipped_health': '⏭️',
+            'configured_install_failed': '✗',
+            'new_healthy': '✓',
+            'new_unhealthy': '⚠️',
+            'new_skipped_health': '⏭️',
+            'new_failed': '✗'
+        }
+        icon = status_icons.get(status, '?')
+        status_text = status.replace('_', ' ').title()
+        print(f"{icon} {ip:20s} - {status_text}")
+    
+    # Final recommendations
+    failed_ssh = [ip for ip, status in results if status == 'ssh_failed']
+    if failed_ssh:
+        print("\n💡 Recommendations:")
+        print(f"   - Run: python3 scripts/setup_ssh_key.py --all")
+        print(f"   - Or manually: python3 scripts/setup_ssh_key.py {failed_ssh[0]}")
 
 if __name__ == "__main__":
     main()
