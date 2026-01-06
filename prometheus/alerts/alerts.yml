@@ -36,7 +36,25 @@ groups:
           severity: critical
         annotations:
           summary: "Espaço em disco crítico em {{ $labels.instance }}"
-          description: "Apenas {{ $value }}% de espaço livre no disco {{ $labels.mountpoint }} em {{ $labels.instance }}"
+          description: "Apenas {{ $value | printf \"%.2f\" }}% de espaço livre no disco {{ $labels.mountpoint }} em {{ $labels.instance }}"
+
+      - alert: DiskWillBeFullIn24Hours
+        expr: predict_linear(node_filesystem_free_bytes{job="node_exporter"}[1h], 24 * 3600) < 0
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disco enchendo rápido em {{ $labels.instance }}"
+          description: "O disco {{ $labels.mountpoint }} deve ficar sem espaço nas próximas 24 horas baseado na taxa de uso atual."
+
+      - alert: HighLoadAverage
+        expr: node_load1 / count by(instance) (node_cpu_seconds_total{mode="idle"}) > 2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Load Average elevado em {{ $labels.instance }}"
+          description: "O Load Average da instância {{ $labels.instance }} está 2x acima do número de cores."
 
       - alert: ContainerDown
         expr: absent(container_last_seen{name=~".+"})
@@ -44,17 +62,26 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "Container {{ $labels.name }} não está sendo visto"
-          description: "O container {{ $labels.name }} não está respondendo há mais de 2 minutos"
+          summary: "Container {{ $labels.name }} parado"
+          description: "O container {{ $labels.name }} na instância {{ $labels.instance }} não é visto há mais de 2 minutos"
 
-      - alert: HighContainerMemory
-        expr: (container_memory_usage_bytes / container_spec_memory_limit_bytes) * 100 > 90
-        for: 3m
+      - alert: ContainerHighCpuUsage
+        expr: (sum by(name, instance) (rate(container_cpu_usage_seconds_total{name=~".+"}[5m])) * 100) > 80
+        for: 5m
         labels:
           severity: warning
         annotations:
-          summary: "Container {{ $labels.name }} com alto uso de memória"
-          description: "Container {{ $labels.name }} está usando {{ $value }}% da memória alocada"
+          summary: "Alto uso de CPU no container {{ $labels.name }}"
+          description: "O container {{ $labels.name }} está usando {{ $value | printf \"%.2f\" }}% de CPU"
+
+      - alert: ContainerHighMemoryUsage
+        expr: (container_memory_usage_bytes{name=~".+"} / container_spec_memory_limit_bytes{name=~".+"} * 100) > 90
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Alto uso de memória no container {{ $labels.name }}"
+          description: "O container {{ $labels.name }} está usando {{ $value | printf \"%.2f\" }}% do seu limite"
 
   - name: prometheus_alerts
     interval: 30s

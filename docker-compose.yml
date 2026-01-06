@@ -47,6 +47,10 @@ services:
       - ./alloy/config.alloy:/etc/alloy/config.alloy
       - /var/log:/var/log:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/run:/var/run:ro
+      - /:/rootfs:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
     command:
       - run
       - /etc/alloy/config.alloy
@@ -67,6 +71,7 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/etc/grafana/dashboards
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin

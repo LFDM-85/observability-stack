@@ -56,7 +56,7 @@ check_file "webhook-adapter/Dockerfile" || ((missing_count++))
 check_file "webhook-adapter/teams-webhook-adapter.py" || ((missing_count++))
 
 # Automation Scripts & Configs
-if [ ! -f "grafana/dashboards/node_exporter_full.json" ]; then
+if [ ! -d "grafana/dashboards" ] || [ -z "$(ls -A grafana/dashboards)" ]; then
     echo -e "${BLUE}📥 Downloading Grafana dashboards...${NC}"
     # Use python if available, otherwise warn
     if command -v python3 &> /dev/null; then
