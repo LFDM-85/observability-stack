@@ -322,8 +322,71 @@ The stack includes automation tools for production-ready deployment with minimal
 - **`check_health.py`** - Shows overall system health, target status, and active alerts
 - **`test_alerts.sh`** - Triggers test alerts to verify webhook delivery
 
+### SSH Key Troubleshooting
+
+If `setup_ssh_key.py` fails with `Permission denied (publickey,...)`, the remote server doesn't allow password authentication. Use one of these methods:
+
+**Option 1: Temporarily enable password authentication on the remote server**
+
+```bash
+# On the REMOTE server (e.g., 192.168.1.100):
+sudo sed -i 's/^PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
+sudo systemctl restart sshd
+
+# On your monitoring server, copy the key:
+ssh-copy-id root@192.168.1.100
+
+# Then revert on the remote server:
+sudo sed -i 's/^PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
+sudo systemctl restart sshd
+```
+
+**Option 2: Manually copy the SSH key**
+
+```bash
+# On your monitoring server, display the public key:
+cat ~/.ssh/id_rsa.pub
+
+# On the REMOTE server, add the key:
+mkdir -p ~/.ssh && chmod 700 ~/.ssh
+echo "PASTE_YOUR_KEY_HERE" >> ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys
+```
+
+After setting up the key, verify with:
+```bash
+ssh root@192.168.1.100 echo "SSH OK"
+```
+
+### Docker Network Troubleshooting
+
+If a target is reachable from the host but Prometheus shows it as "down", the Docker container may not have network access to the target.
+
+**1. Verify host-level connectivity:**
+```bash
+# Test from the host (should work)
+nc -zv 192.168.1.100 9100
+```
+
+**2. Test from inside the Prometheus container:**
+```bash
+# If this fails, it's a Docker network issue
+docker exec prometheus wget -qO- http://192.168.1.100:9100/metrics | head -5
+```
+
+**3. Check Docker network configuration:**
+```bash
+docker network ls
+docker network inspect monitoring
+```
+
+**4. Common solutions:**
+- Ensure the `monitoring` network uses the `bridge` driver (default)
+- Check if the host firewall allows Docker bridge traffic
+- For hosts on different subnets, ensure proper routing exists
+
 > [!TIP]
-> For detailed workflow and troubleshoting, see the automation documentation in the project root.
+> For detailed workflow and troubleshooting, see the automation documentation in the project root.
 
 ## 📊 Accessing Services
 
