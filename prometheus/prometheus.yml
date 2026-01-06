@@ -31,5 +31,27 @@ scrape_configs:
       - source_labels: [__address__]
         target_label: instance
 
+  # Remote Docker containers (auto-discovered via deploy script)
+  - job_name: 'remote_docker'
+    file_sd_configs:
+      - files:
+        - '/etc/prometheus/docker_targets.json'
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: '(.+):8080'
+        target_label: instance
+        replacement: '${1}'
+
+  # Remote MySQL databases (auto-discovered via deploy script)
+  - job_name: 'remote_mysql'
+    file_sd_configs:
+      - files:
+        - '/etc/prometheus/mysql_targets.json'
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: '(.+):9104'
+        target_label: instance
+        replacement: '${1}'
+
 rule_files:
   - "./alerts/alerts.yml"

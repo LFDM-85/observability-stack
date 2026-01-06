@@ -34,6 +34,42 @@ def test_ssh_connection(ip, username='root'):
     except:
         return False
 
+def detect_services(ip):
+    """Detect what services are running on the target host."""
+    if ip in ('127.0.0.1', 'localhost'):
+        return {'docker': False, 'mysql': False, 'postgresql': False}
+    
+    services = {
+        'docker': False,
+        'mysql': False,
+        'postgresql': False
+    }
+    
+    print(f"🔍 Detecting services on {ip}...")
+    
+    # Check for Docker
+    docker_check = ssh_command(ip, "docker --version 2>/dev/null", check=True)
+    if docker_check and "Docker version" in docker_check:
+        services['docker'] = True
+        print(f"   ✓ Docker detected")
+    
+    # Check for MySQL/MariaDB
+    mysql_check = ssh_command(ip, "systemctl is-active mysql 2>/dev/null || systemctl is-active mariadb 2>/dev/null", check=True)
+    if mysql_check and mysql_check.strip() == "active":
+        services['mysql'] = True
+        print(f"   ✓ MySQL/MariaDB detected")
+    
+    # Check for PostgreSQL
+    postgres_check = ssh_command(ip, "systemctl is-active postgresql 2>/dev/null", check=True)
+    if postgres_check and "active" in postgres_check:
+        services['postgresql'] = True
+        print(f"   ✓ PostgreSQL detected")
+    
+    if not any(services.values()):
+        print(f"   ℹ️  No additional services detected (Docker, MySQL, PostgreSQL)")
+    
+    return services
+
 def load_hosts():
     if not os.path.exists(HOSTS_FILE):
         return []
@@ -81,6 +117,92 @@ def add_target(ip, targets):
             }
         })
     return targets
+
+def add_docker_target(ip):
+    """Add cAdvisor target for Docker monitoring."""
+    docker_targets_file = os.path.join(BASE_DIR, 'prometheus', 'docker_targets.json')
+    
+    # Load existing targets
+    if os.path.exists(docker_targets_file):
+        with open(docker_targets_file, 'r') as f:
+            try:
+                targets = json.load(f)
+            except json.JSONDecodeError:
+                targets = []
+    else:
+        targets = []
+    
+    target_str = f"{ip}:8080"
+    
+    # Check if target already exists
+    found = False
+    for t in targets:
+        if target_str in t.get('targets', []):
+            return
+        if t.get('labels', {}).get('job') == 'remote_docker':
+            if target_str not in t['targets']:
+                t['targets'].append(target_str)
+            found = True
+            break
+    
+    if not found:
+        targets.append({
+            "targets": [target_str],
+            "labels": {
+                "job": "remote_docker",
+                "env": "production"
+            }
+        })
+    
+    # Save targets
+    os.makedirs(os.path.dirname(docker_targets_file), exist_ok=True)
+    with open(docker_targets_file, 'w') as f:
+        json.dump(targets, f, indent=2)
+    
+    print(f"✅ Added Docker target: {target_str}")
+
+def add_mysql_target(ip):
+    """Add MySQL exporter target for database monitoring."""
+    mysql_targets_file = os.path.join(BASE_DIR, 'prometheus', 'mysql_targets.json')
+    
+    # Load existing targets
+    if os.path.exists(mysql_targets_file):
+        with open(mysql_targets_file, 'r') as f:
+            try:
+                targets = json.load(f)
+            except json.JSONDecodeError:
+                targets = []
+    else:
+        targets = []
+    
+    target_str = f"{ip}:9104"
+    
+    # Check if target already exists
+    found = False
+    for t in targets:
+        if target_str in t.get('targets', []):
+            return
+        if t.get('labels', {}).get('job') == 'remote_mysql':
+            if target_str not in t['targets']:
+                t['targets'].append(target_str)
+            found = True
+            break
+    
+    if not found:
+        targets.append({
+            "targets": [target_str],
+            "labels": {
+                "job": "remote_mysql",
+                "env": "production"
+            }
+        })
+    
+    # Save targets
+    os.makedirs(os.path.dirname(mysql_targets_file), exist_ok=True)
+    with open(mysql_targets_file, 'w') as f:
+        json.dump(targets, f, indent=2)
+    
+    print(f"✅ Added MySQL target: {target_str}")
 
 def ssh_command(ip, cmd, check=False):
     """Execute command locally or via SSH"""
@@ -188,6 +310,114 @@ WantedBy=multi-user.target' | tee /etc/systemd/system/node_exporter.service > /d
     print(f"[{ip}] Installation successful.")
     return True
 
+def install_cadvisor(ip):
+    """Install cAdvisor for Docker container monitoring."""
+    print(f"🐳 Installing cAdvisor on {ip}...")
+    
+    # Check if already running
+    check_cmd = "systemctl is-active cadvisor"
+    if ssh_command(ip, check_cmd, check=True) and ssh_command(ip, check_cmd, check=True).strip() == "active":
+        print(f"✓ cAdvisor already running on {ip}")
+        return True
+    
+    # cAdvisor version
+    cadvisor_version = "v0.47.0"
+    
+    # Installation commands
+    commands = [
+        f"cd /tmp && wget -q https://github.com/google/cadvisor/releases/download/{cadvisor_version}/cadvisor-{cadvisor_version}-linux-amd64",
+        f"chmod +x /tmp/cadvisor-{cadvisor_version}-linux-amd64",
+        f"mv /tmp/cadvisor-{cadvisor_version}-linux-amd64 /usr/local/bin/cadvisor",
+        """echo '[Unit]
+Description=cAdvisor
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/cadvisor -port=8080
+Restart=always
+
+[Install]
+WantedBy=multi-user.target' | tee /etc/systemd/system/cadvisor.service > /dev/null""",
+        "systemctl daemon-reload",
+        "systemctl start cadvisor",
+        "systemctl enable cadvisor"
+    ]
+    
+    for i, cmd in enumerate(commands):
+        print(f"[{ip}] Step {i+1}/{len(commands)}: Running...")
+        result = ssh_command(ip, cmd, check=True)
+        if result is None:
+            print(f"[{ip}] cAdvisor installation failed at step {i+1}")
+            return False
+            
+    print(f"[{ip}] cAdvisor installation successful.")
+    return True
+
+def install_mysqld_exporter(ip):
+    """Install MySQL/MariaDB exporter for database monitoring."""
+    print(f"🗄️  Installing MySQL Exporter on {ip}...")
+    
+    # Check if already running
+    check_cmd = "systemctl is-active mysqld_exporter"
+    if ssh_command(ip, check_cmd, check=True) and ssh_command(ip, check_cmd, check=True).strip() == "active":
+        print(f"✓ MySQL Exporter already running on {ip}")
+        return True
+    
+    # MySQL Exporter version
+    exporter_version = "0.15.1"
+    
+    # Create MySQL monitoring user
+    print(f"[{ip}] Creating MySQL monitoring user...")
+    mysql_user_cmd = """mysql -e "CREATE USER IF NOT EXISTS 'exporter'@'localhost' IDENTIFIED BY 'exporterpass' WITH MAX_USER_CONNECTIONS 3;
+GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'exporter'@'localhost';
+FLUSH PRIVILEGES;" 2>/dev/null || \
+mariadb -e "CREATE USER IF NOT EXISTS 'exporter'@'localhost' IDENTIFIED BY 'exporterpass' WITH MAX_USER_CONNECTIONS 3;
+GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'exporter'@'localhost';
+FLUSH PRIVILEGES;" 2>/dev/null"""
+    
+    result = ssh_command(ip, mysql_user_cmd, check=True)
+    if result is None:
+        print(f"⚠️  Could not create MySQL user. Continuing anyway (may already exist)...")
+    
+    # Installation commands
+    commands = [
+        f"cd /tmp && wget -q https://github.com/prometheus/mysqld_exporter/releases/download/v{exporter_version}/mysqld_exporter-{exporter_version}.linux-amd64.tar.gz",
+        f"cd /tmp && tar xzf mysqld_exporter-{exporter_version}.linux-amd64.tar.gz",
+        f"mv /tmp/mysqld_exporter-{exporter_version}.linux-amd64/mysqld_exporter /usr/local/bin/",
+        "rm -rf /tmp/mysqld_exporter-*",
+        "useradd -rs /bin/false mysqld_exporter 2>/dev/null || true",
+        "mkdir -p /etc/mysqld_exporter",
+        """echo 'DATA_SOURCE_NAME="exporter:exporterpass@(localhost:3306)/"' | tee /etc/mysqld_exporter/mysqld_exporter.env > /dev/null""",
+        "chmod 600 /etc/mysqld_exporter/mysqld_exporter.env",
+        """echo '[Unit]
+Description=MySQL Exporter
+After=network.target
+
+[Service]
+Type=simple
+User=mysqld_exporter
+EnvironmentFile=/etc/mysqld_exporter/mysqld_exporter.env
+ExecStart=/usr/local/bin/mysqld_exporter --web.listen-address=:9104
+Restart=always
+
+[Install]
+WantedBy=multi-user.target' | tee /etc/systemd/system/mysqld_exporter.service > /dev/null""",
+        "systemctl daemon-reload",
+        "systemctl start mysqld_exporter",
+        "systemctl enable mysqld_exporter"
+    ]
+    
+    for i, cmd in enumerate(commands):
+        print(f"[{ip}] Step {i+1}/{len(commands)}: Running...")
+        result = ssh_command(ip, cmd, check=True)
+        if result is None:
+            print(f"[{ip}] MySQL Exporter installation failed at step {i+1}")
+            return False
+            
+    print(f"[{ip}] MySQL Exporter installation successful.")
+    return True
+
 def verify_target_health(ip, timeout=30):
     """Verify that Prometheus can scrape the target."""
     import requests
@@ -281,6 +511,10 @@ def main():
             results.append((ip, 'ssh_failed'))
             continue
         
+        # Detect services on the host
+        detected_services = detect_services(ip)
+        print()  # Blank line for readability
+        
         # Check if already configured
         if is_target_configured(ip, targets):
             print(f"✓ Host {ip} already configured in Prometheus targets.")
@@ -303,6 +537,23 @@ def main():
         if install_node_exporter(ip):
             targets = add_target(ip, targets)
             changes_made = True
+            
+            # Install cAdvisor if Docker is detected
+            if detected_services.get('docker'):
+                if install_cadvisor(ip):
+                    add_docker_target(ip)
+                    print(f"✅ Docker monitoring configured for {ip}")
+                else:
+                    print(f"⚠️  Failed to install cAdvisor on {ip}")
+            
+            # Install MySQL Exporter if MySQL is detected
+            if detected_services.get('mysql'):
+                if install_mysqld_exporter(ip):
+                    add_mysql_target(ip)
+                    print(f"✅ MySQL monitoring configured for {ip}")
+                else:
+                    print(f"⚠️  Failed to install MySQL Exporter on {ip}")
+            
             print(f"✅ Host {ip} configured successfully")
             if not args.skip_health_check:
                 if verify_target_health(ip):

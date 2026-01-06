@@ -238,6 +238,46 @@ This stack includes tools to automate the deployment of Node Exporter to remote 
 3.  **Automatic Discovery:**
     Prometheus watches for changes in `prometheus/targets.json`. New targets will appear under the **`remote_hosts`** job in Prometheus and Grafana automatically without restarting the stack.
 
+### Automatic Docker & Database Monitoring
+
+The deployment script automatically detects and monitors:
+
+🐳 **Docker Containers**
+
+- Detects if Docker is running on the remote host
+- Installs cAdvisor as a systemd service (port 8080)
+- Metrics appear under the `remote_docker` job
+- Container metrics integrate into existing dashboards
+
+🗄️ **MySQL/MariaDB Databases**
+
+- Automatically detects MySQL or MariaDB
+- Installs mysqld_exporter as a systemd service (port 9104)
+- Creates monitoring user with limited privileges
+- Metrics appear under the `remote_mysql` job
+- Dashboards available for database performance
+
+🐘 **PostgreSQL** (Coming Soon)
+
+- PostgreSQL exporter
+- Automatic detection and installation
+
+**Example workflow:**
+
+```bash
+# Add server with Docker to hosts.txt
+echo "10.0.0.50" >> hosts.txt
+
+# Deploy monitoring (auto-detects Docker)
+python3 scripts/deploy_monitor.py
+
+# Output shows:
+# 🔍 Detecting services on 10.0.0.50...
+#    ✓ Docker detected
+# 🐳 Installing cAdvisor...
+# ✅ Docker monitoring configured
+```
+
 ## 🤖 Automated Production Deployment
 
 The stack includes automation tools for production-ready deployment with minimal manual intervention.
