@@ -62,7 +62,7 @@ def check_metrics_availability():
         # Check for node metrics
         response = requests.get(
             f"{PROMETHEUS_URL}/api/v1/query",
-            params={'query': 'up{job=~"node_exporter.*"}'},
+            params={'query': 'up{job=~"monitoring_stack|remote_hosts|remote_docker|remote_mysql"}'},
             timeout=5
         )
         
