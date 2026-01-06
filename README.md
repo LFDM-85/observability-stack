@@ -88,6 +88,53 @@ This stack includes tools to automate the deployment of Node Exporter to remote 
 3.  **Automatic Discovery:**
     Prometheus watches for changes in `prometheus/targets.json`. New targets will appear in Prometheus and Grafana automatically without restarting the stack.
 
+## 🤖 Automated Production Deployment
+
+The stack includes automation tools for production-ready deployment with minimal manual intervention.
+
+### Quick Start
+
+1.  **Setup SSH Keys (One-Time):**
+
+    ```bash
+    python3 scripts/setup_ssh_key.py --all
+    ```
+
+    This sets up passwordless SSH authentication for all hosts in `hosts.txt`.
+
+2.  **Deploy Monitoring:**
+
+    ```bash
+    python3 scripts/deploy_monitor.py
+    ```
+
+    Or combine SSH setup and deployment:
+
+    ```bash
+    python3 scripts/deploy_monitor.py --setup-keys
+    ```
+
+3.  **Verify System Health:**
+
+    ```bash
+    python3 scripts/check_health.py
+    ```
+
+4.  **Test Alerts:**
+    ```bash
+    ./scripts/test_alerts.sh
+    ```
+
+### Available Scripts
+
+- **`setup_ssh_key.py`** - Automates SSH key distribution using password authentication
+- **`deploy_monitor.py`** - Deploys Node Exporter with validation and health checks
+- **`check_health.py`** - Shows overall system health, target status, and active alerts
+- **`test_alerts.sh`** - Triggers test alerts to verify webhook delivery
+
+> [!TIP]
+> For detailed workflow and troubleshoting, see the automation documentation in the project root.
+
 ## 📊 Accessing Services
 
 Once the stack is up and running, you can access the services at the following URLs:

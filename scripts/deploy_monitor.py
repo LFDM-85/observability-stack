@@ -3,6 +3,7 @@ import os
 import subprocess
 import sys
 import time
+import argparse
 from fix_dashboards import fix_dashboards
 
 # Paths
@@ -12,6 +13,26 @@ TARGETS_FILE = os.path.join(BASE_DIR, 'prometheus', 'targets.json')
 
 # Node Exporter Version
 NODE_EXPORTER_VERSION = "1.8.2"
+
+def test_ssh_connection(ip, username='root'):
+    """Test if SSH key authentication is working."""
+    if ip in ('127.0.0.1', 'localhost'):
+        return True  # Localhost doesn't need SSH
+    
+    try:
+        result = subprocess.run([
+            'ssh',
+            '-o', 'StrictHostKeyChecking=no',
+            '-o', 'PasswordAuthentication=no',
+            '-o', 'ConnectTimeout=5',
+            '-o', 'BatchMode=yes',
+            f'{username}@{ip}',
+            'echo "test"'
+        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=10)
+        
+        return result.returncode == 0
+    except:
+        return False
 
 def load_hosts():
     if not os.path.exists(HOSTS_FILE):
@@ -102,22 +123,27 @@ def ssh_command(ip, cmd, check=False):
             return None
 
 def install_node_exporter(ip):
-    print(f"[{ip}] Checking/Installing Node Exporter...")
+    """Install Node Exporter on the given IP"""
+    print(f"🔧 Installing Node Exporter on {ip}...")
     
-    # Check if binary exists
+    # Skip localhost - it's already monitored by the node-exporter container
+    if ip in ('127.0.0.1', 'localhost'):
+        print(f"⏭️  Skipping {ip} - already monitored by node-exporter service")
+        return True
+    
+    # Check if Node Exporter is already installed and running
+    check_cmd = "systemctl is-active node_exporter"
+    if ssh_command(ip, check_cmd, check=True) and ssh_command(ip, check_cmd, check=True).strip() == "active":
+        print(f"✓ Node Exporter already running on {ip}")
+        return True
+    
+    # Check if binary exists but service isn't running
     check_bin_cmd = "ls /usr/local/bin/node_exporter"
     res_bin = ssh_command(ip, check_bin_cmd)
     
-    # Check if already running
-    check_svc_cmd = "systemctl is-active node_exporter"
-    res_svc = ssh_command(ip, check_svc_cmd)
-    
-    if (res_bin and "/usr/local/bin/node_exporter" in res_bin) or (res_svc and res_svc.strip() == "active"):
-        print(f"[{ip}] Node Exporter is already installed/active.")
-        # Ensure it's started and enabled if it exists but is not active
-        if not (res_svc and res_svc.strip() == "active"):
-            print(f"[{ip}] Starting and enabling existing Node Exporter...")
-            ssh_command(ip, "sudo systemctl daemon-reload && sudo systemctl start node_exporter && sudo systemctl enable node_exporter", check=True)
+    if res_bin and "/usr/local/bin/node_exporter" in res_bin:
+        print(f"[{ip}] Node Exporter binary found, but service not active. Starting and enabling...")
+        ssh_command(ip, "sudo systemctl daemon-reload && sudo systemctl start node_exporter && sudo systemctl enable node_exporter", check=True)
         return True
 
     print(f"[{ip}] Installing Node Exporter v{NODE_EXPORTER_VERSION}...")
@@ -162,26 +188,129 @@ WantedBy=multi-user.target' | sudo tee /etc/systemd/system/node_exporter.service
     print(f"[{ip}] Installation successful.")
     return True
 
-def main():
-    hosts = load_hosts()
-    targets = load_targets()
+def verify_target_health(ip, timeout=30):
+    """Verify that Prometheus can scrape the target."""
+    import requests
+    import time
     
-    if not hosts:
-        print("❌ No hosts found in hosts.txt")
-        return
+    target_endpoint = f"{ip}:9100"
+    if ip in ('127.0.0.1', 'localhost'):
+        return True  # Skip localhost verification
+    
+    print(f"🔍 Verifying target health for {target_endpoint}...")
+    
+    prometheus_url = "http://localhost:9990/api/v1/targets"
+    start_time = time.time()
+    
+    while time.time() - start_time < timeout:
+        try:
+            response = requests.get(prometheus_url, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                for target in data.get('data', {}).get('activeTargets', []):
+                    if target_endpoint in target.get('scrapeUrl', ''):
+                        health = target.get('health')
+                        if health == 'up':
+                            print(f"✓ Target {target_endpoint} is UP and healthy")
+                            return True
+                        else:
+                            print(f"⚠️  Target {target_endpoint} status: {health}")
+        except requests.exceptions.ConnectionError:
+            print(f"[{ip}] Prometheus not reachable at {prometheus_url}. Retrying...")
+        except Exception as e:
+            print(f"[{ip}] Error verifying target health: {e}")
+        
+        time.sleep(2)
+    
+    print(f"⚠️  Could not verify target health within {timeout}s")
+    return False
 
+def main():
+    parser = argparse.ArgumentParser(
+        description='Deploy Node Exporter to monitoring targets',
+        epilog='Example: python3 deploy_monitor.py --setup-keys'
+    )
+    parser.add_argument('--setup-keys', action='store_true',
+                       help='Setup SSH keys before deployment')
+    parser.add_argument('--skip-health-check', action='store_true',
+                       help='Skip health verification after deployment')
+    args = parser.parse_args()
+    
+    print("🚀 Node Exporter Deployment Script")
+    print("=" * 50)
+    
+    # Check if setup_ssh_key.py exists and offer to run it
+    if args.setup_keys:
+        setup_script = os.path.join(BASE_DIR, 'scripts', 'setup_ssh_key.py')
+        if os.path.exists(setup_script):
+            print("\n🔐 Running SSH key setup...\n")
+            result = subprocess.run(['python3', setup_script, '--all'])
+            if result.returncode != 0:
+                print("\n⚠️  SSH key setup had issues. Continue anyway? (y/n): ", end='')
+                if input().lower() != 'y':
+                    sys.exit(1)
+            print()
+    
+    hosts = load_hosts()
+    if not hosts:
+        print("⚠️  No hosts found in hosts.txt")
+        return
+    
     print(f"📋 Found {len(hosts)} host(s) to process\n")
     
-    updated = False
+    targets = load_targets()
+    changes_made = False
+    results = []
+    
     for ip in hosts:
-        if not is_target_configured(ip, targets):
-            print(f"\n▶️  Processing new host: {ip}")
+        print(f"\n{'='*50}")
+        print(f"Processing: {ip}")
+        print(f"{'='*50}\n")
+        
+        # Skip localhost - already monitored
+        if ip in ('127.0.0.1', 'localhost'):
+            print(f"⏭️  Skipping {ip} - already monitored by node-exporter service\n")
+            results.append((ip, 'skipped'))
+            continue
+        
+        # Check SSH connectivity
+        if not test_ssh_connection(ip):
+            print(f"✗ SSH key authentication failed for {ip}")
+            print(f"   Please run: python3 scripts/setup_ssh_key.py {ip}")
+            print(f"   Or run with --setup-keys flag\n")
+            results.append((ip, 'ssh_failed'))
+            continue
+        
+        # Check if already configured
+        if is_target_configured(ip, targets):
+            print(f"✓ Host {ip} already configured in Prometheus targets.")
+            # Ensure Node Exporter is installed and running even if target is configured
             if install_node_exporter(ip):
-                targets = add_target(ip, targets)
-                updated = True
-                print(f"✅ Host {ip} configured successfully")
+                if not args.skip_health_check:
+                    if verify_target_health(ip):
+                        results.append((ip, 'configured_healthy'))
+                    else:
+                        results.append((ip, 'configured_unhealthy'))
+                else:
+                    results.append((ip, 'configured_skipped_health'))
             else:
-                print(f"❌ Failed to configure {ip}")
+                print(f"❌ Failed to ensure Node Exporter is running on {ip}")
+                results.append((ip, 'configured_install_failed'))
+            continue # Move to next host
+        
+        # New host - install Node Exporter and add to targets
+        print(f"\n▶️  Processing new host: {ip}")
+        if install_node_exporter(ip):
+            targets = add_target(ip, targets)
+            changes_made = True
+            print(f"✅ Host {ip} configured successfully")
+            if not args.skip_health_check:
+                if verify_target_health(ip):
+                    results.append((ip, 'new_healthy'))
+                else:
+                    results.append((ip, 'new_unhealthy'))
+            else:
+                results.append((ip, 'new_skipped_health'))
         else:
             print(f"✓ Host {ip} already configured.")
 
