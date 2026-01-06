@@ -108,16 +108,15 @@ def install_node_exporter(ip):
 
     print(f"[{ip}] Installing Node Exporter v{NODE_EXPORTER_VERSION}...")
     
-    # Check for wget and sudo if running locally
+    # Check for wget if running locally and installation is needed
     if ip in ("127.0.0.1", "localhost", "192.168.1.148"):
         res_wget = ssh_command(ip, "wget --version")
         if not res_wget:
-            print(f"[{ip}] Error: 'wget' is not installed or not in PATH. Please install it.")
-            return False
-            
+            print(f"[{ip}] Warning: 'wget' is not installed. If Node Exporter download is needed, this will fail.")
+    
     # Installation commands
     commands = [
-        f"cd /tmp && wget https://github.com/prometheus/node_exporter/releases/download/v{NODE_EXPORTER_VERSION}/node_exporter-{NODE_EXPORTER_VERSION}.linux-amd64.tar.gz",
+        f"cd /tmp && wget -q https://github.com/prometheus/node_exporter/releases/download/v{NODE_EXPORTER_VERSION}/node_exporter-{NODE_EXPORTER_VERSION}.linux-amd64.tar.gz",
         f"cd /tmp && tar xvfz node_exporter-{NODE_EXPORTER_VERSION}.linux-amd64.tar.gz",
         f"sudo mv /tmp/node_exporter-{NODE_EXPORTER_VERSION}.linux-amd64/node_exporter /usr/local/bin/",
         "rm -rf /tmp/node_exporter-*",
