@@ -48,7 +48,7 @@ services:
     volumes:
       - ./alloy/config.alloy:/etc/alloy/config.alloy
       - /var/log:/var/log:ro
-      - /run/user/1000/docker.sock:/var/run/docker.sock:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
       - /var/run:/var/run:ro
       - /:/rootfs:ro
       - /sys:/sys:ro
@@ -141,7 +141,7 @@ services:
     container_name: cadvisor
     restart: unless-stopped
     volumes:
-      - /run/user/1000/docker.sock:/var/run/docker.sock:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
       - /:/rootfs:ro
       - /var/run:/var/run:ro
       - /sys:/sys:ro
