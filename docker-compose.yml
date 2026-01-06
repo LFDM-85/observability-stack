@@ -18,6 +18,8 @@ services:
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
       - '--web.enable-lifecycle'
+      - '--web.enable-remote-write-receiver'
+      - '--enable-feature=otlp-write-receiver'
     restart: unless-stopped
     networks:
       - monitoring
@@ -41,13 +43,12 @@ services:
   alloy:
     image: grafana/alloy:latest
     container_name: alloy
-    user: "0"
     ports:
       - "12345:12345"
     volumes:
       - ./alloy/config.alloy:/etc/alloy/config.alloy
       - /var/log:/var/log:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /run/user/1000/docker.sock:/var/run/docker.sock:ro
       - /var/run:/var/run:ro
       - /:/rootfs:ro
       - /sys:/sys:ro
@@ -133,6 +134,21 @@ services:
       - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
     networks:
       - monitoring
+
+  # cAdvisor - Métricas de Containers
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    restart: unless-stopped
+    volumes:
+      - /run/user/1000/docker.sock:/var/run/docker.sock:ro
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+    networks:
+      - monitoring
+
 
 volumes:
   prometheus_data:
