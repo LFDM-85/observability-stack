@@ -14,6 +14,9 @@ TARGETS_FILE = os.path.join(BASE_DIR, 'prometheus', 'targets.json')
 # Node Exporter Version
 NODE_EXPORTER_VERSION = "1.8.2"
 
+# CADVISOR Port
+CADVISOR_PORT = "9991"
+
 def test_ssh_connection(ip, username='root'):
     """Test if SSH key authentication is working."""
     if ip in ('127.0.0.1', 'localhost'):
@@ -132,7 +135,7 @@ def add_docker_target(ip):
     else:
         targets = []
     
-    target_str = f"{ip}:8080"
+    target_str = f"{ip}:{CADVISOR_PORT}"
     
     # Check if target already exists
     found = False
@@ -334,7 +337,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/cadvisor -port=8080
+ExecStart=/usr/local/bin/cadvisor -port={CADVISOR_PORT}
 Restart=always
 
 [Install]

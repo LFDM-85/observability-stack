@@ -38,7 +38,7 @@ scrape_configs:
         - '/etc/prometheus/docker_targets.json'
     relabel_configs:
       - source_labels: [__address__]
-        regex: '(.+):8080'
+        regex: '(.+):9991'
         target_label: instance
         replacement: '${1}'
 
