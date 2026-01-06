@@ -212,7 +212,7 @@ if [[ "$response" =~ ^([sS]|[yY])$ ]]; then
     echo ""
     echo -e "${BLUE}📍 Access URLs:${NC}"
     echo "   🎨 Grafana:       http://localhost:3000  (admin/admin)"
-    echo "   📊 Prometheus:    http://localhost:9090"
+    echo "   📊 Prometheus:    http://localhost:9990"
     echo "   🔔 Alertmanager:  http://localhost:9093"
     echo "   📝 Loki:          http://localhost:3100"
     echo "   🤖 Alloy:         http://localhost:12345"

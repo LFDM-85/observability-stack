@@ -6,8 +6,9 @@ A complete, Docker-based observability stack featuring Prometheus, Grafana, Loki
 
 - **Prometheus**: Metrics collection, storage, and **proactive alerting**.
 - **Grafana**: Visualization with **automated dashboards** for System, Docker, and Prometheus.
+- **Node Exporter**: Built-in collector for local host metrics.
 - **Loki**: Log aggregation system.
-- **Alloy**: OpenTelemetry Collector distribution with **cAdvisor integration** for deep container monitoring.
+- **Alloy**: OpenTelemetry Collector distribution with **cAdvisor integration** and system monitoring.
 - **Alertmanager**: Alert handling and routing.
 - **Webhook Adapter**: Custom adapter to bridge alerts to Microsoft Teams and Discord.
 
@@ -68,7 +69,7 @@ The stack automatically provisions popular dashboards and matching alerting rule
 This stack includes tools to automate the deployment of Node Exporter to remote Linux servers and automatically configure Prometheus to monitor them.
 
 1.  **Prepare the Host List:**
-    Edit the `hosts.txt` file and add the IP addresses of the servers you want to monitor (one per line).
+    Edit the `hosts.txt` file and add the IP addresses of the servers you want to monitor (one per line). Local host metrics are already collected by default through the internal `node-exporter` service.
 
     ```text
     192.168.1.50
@@ -94,7 +95,7 @@ Once the stack is up and running, you can access the services at the following U
 | Service          | URL                      | Default Credentials |
 | :--------------- | :----------------------- | :------------------ |
 | **Grafana**      | `http://localhost:3000`  | `admin` / `admin`   |
-| **Prometheus**   | `http://localhost:9090`  | N/A                 |
+| **Prometheus**   | `http://localhost:9990`  | N/A                 |
 | **Alertmanager** | `http://localhost:9093`  | N/A                 |
 | **Loki**         | `http://localhost:3100`  | N/A                 |
 | **Alloy**        | `http://localhost:12345` | N/A                 |

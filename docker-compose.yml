@@ -4,7 +4,7 @@ services:
     image: prom/prometheus:latest
     container_name: prometheus
     ports:
-      - "9090:9090"
+      - "9990:9090"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - ./prometheus/alerts:/etc/prometheus/alerts
@@ -41,6 +41,7 @@ services:
   alloy:
     image: grafana/alloy:latest
     container_name: alloy
+    user: "0"
     ports:
       - "12345:12345"
     volumes:
@@ -113,6 +114,23 @@ services:
       - TEAMS_WEBHOOK_URL=${TEAMS_WEBHOOK_URL}
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
     restart: unless-stopped
+    networks:
+      - monitoring
+
+  # Node Exporter - Métricas do Host
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    restart: unless-stopped
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
     networks:
       - monitoring
 

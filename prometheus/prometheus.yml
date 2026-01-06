@@ -19,9 +19,9 @@ scrape_configs:
     static_configs:
       - targets: ['grafana:3000']
 
-  - job_name: 'zorin'
+  - job_name: 'node_exporter'
     static_configs:
-      - targets: ['10.10.1.156:9100']
+      - targets: ['node-exporter:9100']
 
   - job_name: 'node_exporter_auto'
     file_sd_configs:

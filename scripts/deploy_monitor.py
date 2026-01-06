@@ -65,11 +65,8 @@ def ssh_command(ip, cmd, check=False):
     """Execute command locally or via SSH"""
     # Loopback is always local
     is_loopback = ip in ("127.0.0.1", "localhost")
-    # Specific IP is only local if we are on a Linux-like system
-    # (Or if the user explicitly wants to run locally, but usually it's for remote Linux)
-    is_special_local = (ip == "192.168.1.148" and os.name != 'nt')
     
-    if is_loopback or is_special_local:
+    if is_loopback:
         # Executar localmente
         try:
             # On Windows, we should translate some basic things or just fail if it's a linux cmd
@@ -126,7 +123,7 @@ def install_node_exporter(ip):
     print(f"[{ip}] Installing Node Exporter v{NODE_EXPORTER_VERSION}...")
     
     # Check for wget if running locally and installation is needed
-    if ip in ("127.0.0.1", "localhost", "192.168.1.148"):
+    if ip in ("127.0.0.1", "localhost"):
         res_wget = ssh_command(ip, "wget --version")
         if not res_wget:
             print(f"[{ip}] Warning: 'wget' is not installed. If Node Exporter download is needed, this will fail.")
