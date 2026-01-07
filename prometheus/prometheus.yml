@@ -61,5 +61,19 @@ scrape_configs:
         replacement: '${1}'
 
 
+
+  # Traefik Reverse Proxy
+  - job_name: 'integrations/traefik'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['traefik:8082'] # Default Traefik metrics port
+
+  # General Applications (Backend/Frontend)
+  - job_name: 'integrations/apps'
+    metrics_path: /metrics
+    scheme: http
+    static_configs:
+      - targets: [] # Add your app targets here
+
 rule_files:
   - "./alerts/*.yml"

@@ -41,12 +41,30 @@ services:
     networks:
       - monitoring
 
+  # Tempo - Tracing
+  tempo:
+    image: grafana/tempo:latest
+    container_name: tempo
+    command: [ "-config.file=/etc/tempo.yaml" ]
+    volumes:
+      - ./tempo/tempo.yaml:/etc/tempo.yaml
+      - tempo_data:/var/tempo
+    ports:
+      - "3200:3200" # Tempo HTTP
+      - "4317"      # OTLP gRPC
+      - "4318"      # OTLP HTTP
+    restart: unless-stopped
+    networks:
+      - monitoring
+
   # Grafana Alloy - Agente de coleta
   alloy:
     image: grafana/alloy:latest
     container_name: alloy
     ports:
       - "12345:12345"
+      - "4317:4317" # OTLP gRPC Receiver
+      - "4318:4318" # OTLP HTTP Receiver
     volumes:
       - ./alloy/config.alloy:/etc/alloy/config.alloy
       - /var/log:/var/log:ro
@@ -157,6 +175,7 @@ volumes:
   loki_data:
   grafana_data:
   alertmanager_data:
+  tempo_data:
 
 networks:
   monitoring:

@@ -51,5 +51,54 @@ local.file_match "system_logs" {
 
 loki.source.file "system" {
   targets    = local.file_match.system_logs.targets
+
   forward_to = [loki.write.default.receiver]
+}
+
+// OpenTelemetry Configuration
+// --------------------------------------------------------------------------------
+
+// 1. Receber dados OTLP (Traces, Metrics, Logs) das aplicações
+otelcol.receiver.otlp "default" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+
+  output {
+    metrics = [otelcol.processor.batch.default.input]
+    logs    = [otelcol.processor.batch.default.input]
+    traces  = [otelcol.processor.batch.default.input]
+  }
+}
+
+// 2. Processar em batch para eficiência
+otelcol.processor.batch "default" {
+  output {
+    metrics = [otelcol.exporter.prometheus.default.input]
+    logs    = [otelcol.exporter.loki.default.input]
+    traces  = [otelcol.exporter.otlp.tempo.input]
+  }
+}
+
+// 3. Exportar Métricas para o Prometheus Remote Write existente
+otelcol.exporter.prometheus "default" {
+  forward_to = [prometheus.remote_write.default.receiver]
+}
+
+// 4. Exportar Logs para o Loki
+otelcol.exporter.loki "default" {
+  forward_to = [loki.write.default.receiver]
+}
+
+// 5. Exportar Traces para o Tempo
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "tempo:4317"
+    tls {
+      insecure = true
+    }
+  }
 }
