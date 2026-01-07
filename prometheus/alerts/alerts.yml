@@ -10,6 +10,7 @@ groups:
         annotations:
           summary: "Instância {{ $labels.instance }} está down"
           description: "A instância {{ $labels.instance }} do job {{ $labels.job }} está inacessível há mais de 1 minuto."
+          dashboard: "http://localhost:3000/d/node_exporter_full?var-instance={{ $labels.instance }}"
 
       - alert: HighCPUUsage
         expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
@@ -18,7 +19,8 @@ groups:
           severity: warning
         annotations:
           summary: "Alto uso de CPU em {{ $labels.instance }}"
-          description: "CPU está em {{ $value }}% na instância {{ $labels.instance }}"
+          description: "CPU está em {{ $value | printf \"%.1f\" }}% na instância {{ $labels.instance }}"
+          dashboard: "http://localhost:3000/d/node_exporter_full?var-instance={{ $labels.instance }}"
 
       - alert: HighMemoryUsage
         expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
@@ -27,7 +29,8 @@ groups:
           severity: warning
         annotations:
           summary: "Alto uso de memória em {{ $labels.instance }}"
-          description: "Memória está em {{ $value }}% na instância {{ $labels.instance }}"
+          description: "Memória está em {{ $value | printf \"%.1f\" }}% na instância {{ $labels.instance }}"
+          dashboard: "http://localhost:3000/d/node_exporter_full?var-instance={{ $labels.instance }}"
 
       - alert: DiskSpaceRunningOut
         expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) * 100 < 15
@@ -37,6 +40,7 @@ groups:
         annotations:
           summary: "Espaço em disco crítico em {{ $labels.instance }}"
           description: "Apenas {{ $value | printf \"%.2f\" }}% de espaço livre no disco {{ $labels.mountpoint }} em {{ $labels.instance }}"
+          dashboard: "http://localhost:3000/d/node_exporter_full?var-instance={{ $labels.instance }}"
 
       - alert: DiskWillBeFullIn24Hours
         expr: predict_linear(node_filesystem_free_bytes{job="node_exporter"}[1h], 24 * 3600) < 0
@@ -46,6 +50,7 @@ groups:
         annotations:
           summary: "Disco enchendo rápido em {{ $labels.instance }}"
           description: "O disco {{ $labels.mountpoint }} deve ficar sem espaço nas próximas 24 horas baseado na taxa de uso atual."
+          dashboard: "http://localhost:3000/d/node_exporter_full?var-instance={{ $labels.instance }}"
 
       - alert: HighLoadAverage
         expr: node_load1 / count by(instance) (node_cpu_seconds_total{mode="idle"}) > 2
@@ -55,6 +60,7 @@ groups:
         annotations:
           summary: "Load Average elevado em {{ $labels.instance }}"
           description: "O Load Average da instância {{ $labels.instance }} está 2x acima do número de cores."
+          dashboard: "http://localhost:3000/d/node_exporter_full?var-instance={{ $labels.instance }}"
 
       - alert: ContainerDown
         expr: absent(container_last_seen{name=~".+"})
@@ -64,6 +70,7 @@ groups:
         annotations:
           summary: "Container {{ $labels.name }} parado"
           description: "O container {{ $labels.name }} na instância {{ $labels.instance }} não é visto há mais de 2 minutos"
+          dashboard: "http://localhost:3000/d/docker_containers"
 
       - alert: ContainerHighCpuUsage
         expr: (sum by(name, instance) (rate(container_cpu_usage_seconds_total{name=~".+"}[5m])) * 100) > 80
@@ -73,6 +80,7 @@ groups:
         annotations:
           summary: "Alto uso de CPU no container {{ $labels.name }}"
           description: "O container {{ $labels.name }} está usando {{ $value | printf \"%.2f\" }}% de CPU"
+          dashboard: "http://localhost:3000/d/docker_containers"
 
       - alert: ContainerHighMemoryUsage
         expr: (container_memory_usage_bytes{name=~".+"} / container_spec_memory_limit_bytes{name=~".+"} * 100) > 90
@@ -82,6 +90,7 @@ groups:
         annotations:
           summary: "Alto uso de memória no container {{ $labels.name }}"
           description: "O container {{ $labels.name }} está usando {{ $value | printf \"%.2f\" }}% do seu limite"
+          dashboard: "http://localhost:3000/d/docker_containers"
 
   - name: prometheus_alerts
     interval: 30s
@@ -94,6 +103,7 @@ groups:
         annotations:
           summary: "Falha ao recarregar configuração do Prometheus"
           description: "Prometheus {{ $labels.instance }} falhou ao recarregar a configuração"
+          dashboard: "http://localhost:3000/d/prometheus_overview"
 
       - alert: PrometheusTooManyRestarts
         expr: changes(process_start_time_seconds{job="prometheus"}[15m]) > 2
@@ -103,6 +113,7 @@ groups:
         annotations:
           summary: "Prometheus reiniciando frequentemente"
           description: "Prometheus teve {{ $value }} reinicializações nos últimos 15 minutos"
+          dashboard: "http://localhost:3000/d/prometheus_overview"
 
   - name: loki_alerts
     interval: 30s
@@ -115,6 +126,7 @@ groups:
         annotations:
           summary: "Taxa de erros alta no Loki"
           description: "Loki está retornando {{ $value }}% de erros 5xx na rota {{ $labels.route }}"
+          dashboard: "http://localhost:3000"
 
   - name: storage_alerts
     interval: 1h
@@ -127,3 +139,6 @@ groups:
         annotations:
           summary: "Armazenamento do Prometheus quase cheio"
           description: "Prometheus está usando {{ $value }}% do limite de 10GB configurado"
+          dashboard: "http://localhost:3000/d/prometheus_overview"
+
+

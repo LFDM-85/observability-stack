@@ -96,19 +96,28 @@ def send_to_discord(alert_data):
             'info': 'ℹ️'
         }.get(labels.get('severity', 'info'), '📊')
         
+        # Tenta pegar URL do dashboard
+        dashboard_url = annotations.get('dashboard')
+
         # Monta embed para Discord
+        embed_fields = [
+            {"name": "Status", "value": status.upper(), "inline": True},
+            {"name": "Severidade", "value": labels.get('severity', 'unknown').upper(), "inline": True},
+            {"name": "Instância", "value": labels.get('instance', 'N/A'), "inline": False},
+            {"name": "Job", "value": labels.get('job', 'N/A'), "inline": True},
+            {"name": "Descrição", "value": annotations.get('description', 'N/A'), "inline": False}
+        ]
+
+        if dashboard_url:
+            embed_fields.append({"name": "🔗 Dashboard", "value": f"[Visualizar no Grafana]({dashboard_url})", "inline": False})
+
         embed = {
             "embeds": [{
                 "title": f"{emoji} {labels.get('alertname', 'Alert')}",
+                "url": dashboard_url,  # Torna o título clicável se houver URL
                 "description": annotations.get('summary', 'Novo alerta'),
                 "color": color,
-                "fields": [
-                    {"name": "Status", "value": status.upper(), "inline": True},
-                    {"name": "Severidade", "value": labels.get('severity', 'unknown').upper(), "inline": True},
-                    {"name": "Instância", "value": labels.get('instance', 'N/A'), "inline": False},
-                    {"name": "Job", "value": labels.get('job', 'N/A'), "inline": True},
-                    {"name": "Descrição", "value": annotations.get('description', 'N/A'), "inline": False}
-                ],
+                "fields": embed_fields,
                 "timestamp": datetime.utcnow().isoformat(),
                 "footer": {"text": "Prometheus Alertmanager"}
             }]
