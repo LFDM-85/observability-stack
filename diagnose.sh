@@ -149,6 +149,8 @@ echo "9093: Alertmanager"
 echo "3000: Grafana"
 echo "12345: Alloy"
 echo "8080: Webhook Adapter"
+echo "3200: Tempo"
+echo "4317/4318: Alloy OTLP"
 echo ""
 
 echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"

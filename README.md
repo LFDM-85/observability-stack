@@ -8,6 +8,7 @@ A complete, Docker-based observability stack featuring Prometheus, Grafana, Loki
 - **Grafana**: Visualization with **automated dashboards** for System, Docker, and Prometheus.
 - **Node Exporter**: Built-in collector for local host metrics.
 - **Loki**: Log aggregation system.
+- **Tempo**: Distributed Tracing backend.
 - **Alloy**: OpenTelemetry Collector distribution with **cAdvisor integration** and system monitoring.
 - **Alertmanager**: Alert handling and routing.
 - **Webhook Adapter**: Custom adapter to bridge alerts to Microsoft Teams and Discord.
@@ -23,36 +24,45 @@ This is a complete, production-ready observability stack that automatically moni
 - 📊 **Pre-configured dashboards** - System, Docker, Prometheus, and Alloy metrics ready to view
 - 🔔 **Proactive alerting** - Predictive disk monitoring, resource limits, container health
 - 🔐 **SSH key automation** - Passwordless deployment after one-time setup
+- 🕵️ **Full Stack Tracing** - Visualize request flows from frontend to database with Tempo & OTLP
 
 ## 🏗️ How It Works
 
 ### Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Monitoring Server                        │
-│                                                             │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
-│  │ Grafana  │  │Prometheus│  │   Loki   │  │  Alloy   │  │
-│  │  :3000   │◄─┤  :9990   │◄─┤  :3100   │◄─┤  :12345  │  │
-│  └──────────┘  └────┬─────┘  └──────────┘  └─────┬────┘  │
-│                     │                              │        │
-│  ┌──────────────────┼──────────────────────────────┘       │
-│  │  Scrapes metrics │  Collects logs                       │
-│  │                  │                                       │
-│  ▼                  ▼                                       │
-│  Node Exporter   cAdvisor    (local host metrics)         │
-└─────────────────────┬───────────────────────────────────────┘
-                      │
-                      │ SSH + Node Exporter
-                      │ (auto-deployed)
-                      │
-         ┌────────────┼────────────┐
-         │            │            │
-         ▼            ▼            ▼
-    Remote       Remote       Remote
-    Server 1     Server 2     Server N
-    :9100        :9100        :9100
+┌──────────────────────────────────────────────────────────────────┐
+│                    Monitoring Server                             │
+│                                                                  │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐          │
+│  │ Grafana  │◄─┤Prometheus│  │   Loki   │  │  Tempo   │          │
+│  │  :3000   │  │  :9990   │  │  :3100   │  │  :3200   │          │
+│  └──────────┘  └────▲─────┘  └─────▲────┘  └─────▲────┘          │
+│                     │              │             │               │
+│                     └──────┬───────┴─────────────┘               │
+│                            │                                     │
+│                      ┌─────┴─────┐                               │
+│                      │   Alloy   │ ◄── OTLP (Traces/Logs/Metrics)│
+│                      │  :12345   │                               │
+│                      └─────▲─────┘                               │
+│                            │                                     │
+│  ┌─────────────────────────┼──────────────────────────────────┐  │
+│  │  Scrapes metrics        │  Collects logs                   │  │
+│  │                         │                                  │  │
+│  ▼                         ▼                                  │  │
+│  Node Exporter           cAdvisor                             │  │
+│                                                               │  │
+└─────────────────────┬─────────────────────────────────────────┘  │
+                      │                                            │
+                      │ SSH + Node Exporter                        │
+                      │ (auto-deployed)                            │
+                      │                                            │
+         ┌────────────┼────────────┐                               │
+         │            │            │                               │
+         ▼            ▼            ▼                               │
+    Remote       Remote       Remote                               │
+    Server 1     Server 2     Server N                             │
+    :9100        :9100        :9100                                │
 ```
 
 ### Components
@@ -60,10 +70,11 @@ This is a complete, production-ready observability stack that automatically moni
 1. **Prometheus** - Collects and stores metrics from all targets
 2. **Grafana** - Visualizes metrics with pre-configured dashboards
 3. **Loki** - Aggregates logs from containers and system
-4. **Alloy** - Telemetry collector with cAdvisor for container metrics
-5. **Node Exporter** - Exports system metrics (CPU, RAM, disk, network)
-6. **Alertmanager** - Routes alerts based on rules
-7. **Webhook Adapter** - Bridges alerts to Discord/Teams
+4. **Tempo** - Stores distributed traces for APM
+5. **Alloy** - Telemetry collector (OTLP, Prometheus, Logging)
+6. **Node Exporter** - Exports system metrics (CPU, RAM, disk, network)
+7. **Alertmanager** - Routes alerts based on rules
+8. **Webhook Adapter** - Bridges alerts to Discord/Teams
 
 ### Data Flow
 
@@ -278,7 +289,37 @@ python3 scripts/deploy_monitor.py
 # ✅ Docker monitoring configured
 ```
 
-## 🔔 Alerting Rules
+## �️ Full Stack Observability (APM)
+
+The stack now supports **Application Performance Monitoring** and **Distributed Tracing** out of the box via OpenTelemetry (OTLP).
+
+### 1. Application Tracing & Metrics (OTLP)
+
+Point your applications (Frontend, Backend, Mobile) to the **Alloy** collector using the standard OTLP protocol. Alloy will automatically route:
+
+- **Traces** -> Grafana Tempo
+- **Metrics** -> Prometheus
+- **Logs** -> Loki
+
+**Configuration:**
+
+- **OTLP gRPC Endpoint:** `http://<monitoring-ip>:4317`
+- **OTLP HTTP Endpoint:** `http://<monitoring-ip>:4318`
+
+### 2. Reverse Proxy Monitoring (Traefik)
+
+Includes a dedicated Prometheus job for **Traefik**.
+
+1.  Enable metrics in your Traefik config:
+    ```yaml
+    metrics:
+      prometheus:
+        addEntryPointsLabels: true
+        addRoutersLabels: true
+    ```
+2.  Ensure Traefik is reachable at `traefik:8082` (or update `prometheus/prometheus.yml` target).
+
+## �🔔 Alerting Rules
 
 The alerting stack has been significantly enhanced and refactored based on the [Awesome Prometheus Alerts](https://samber.github.io/awesome-prometheus-alerts/) collection. Alerts are now modularized in `prometheus/alerts/`:
 
@@ -415,7 +456,9 @@ Once the stack is up and running, you can access the services at the following U
 | **Prometheus**   | `http://localhost:9990`  | N/A                 |
 | **Alertmanager** | `http://localhost:9093`  | N/A                 |
 | **Loki**         | `http://localhost:3100`  | N/A                 |
-| **Alloy**        | `http://localhost:12345` | N/A                 |
+| **Tempo**        | `http://localhost:3200`  | N/A (Use Grafana)   |
+| **Alloy (UI)**   | `http://localhost:12345` | N/A                 |
+| **Alloy (OTLP)** | `:4317` (gRPC) / `:4318` | N/A                 |
 
 ## 🩺 Diagnosis
 
@@ -436,6 +479,7 @@ observability-stack/
 ├── grafana/            # Grafana provisioning & dashboards
 ├── loki/               # Loki configuration
 ├── prometheus/         # Prometheus configuration & rules
+├── tempo/              # Tempo configuration
 ├── scripts/            # Automation & dashboard scripts
 ├── webhook-adapter/    # Python-based webhook adapter
 ├── .env                # Environment variables (created by setup.sh)

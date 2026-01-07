@@ -42,6 +42,9 @@ check_file "prometheus/alerts/alerts.yml" || ((missing_count++))
 # Loki
 check_file "loki/loki-config.yml" || ((missing_count++))
 
+# Tempo
+check_file "tempo/tempo.yaml" || ((missing_count++))
+
 # Alloy
 check_file "alloy/config.alloy" || ((missing_count++))
 
@@ -96,6 +99,7 @@ if [ $missing_count -ne 0 ]; then
     echo "   │   ├── prometheus.yml"
     echo "   │   └── alerts/alerts.yml"
     echo "   ├── loki/loki-config.yml"
+    echo "   ├── tempo/tempo.yaml"
     echo "   ├── alloy/config.alloy"
     echo "   ├── grafana/provisioning/datasources/datasources.yml"
     echo "   ├── alertmanager/alertmanager.yml"
@@ -215,6 +219,7 @@ if [[ "$response" =~ ^([sS]|[yY])$ ]]; then
     echo "   📊 Prometheus:    http://localhost:9990"
     echo "   🔔 Alertmanager:  http://localhost:9093"
     echo "   📝 Loki:          http://localhost:3100"
+    echo "   ⏱️  Tempo:         http://localhost:3200"
     echo "   🤖 Alloy:         http://localhost:12345"
     echo "   🔗 Webhook:       http://localhost:8080/health"
     echo ""
