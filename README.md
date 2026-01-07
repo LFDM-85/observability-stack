@@ -278,6 +278,18 @@ python3 scripts/deploy_monitor.py
 # ✅ Docker monitoring configured
 ```
 
+## 🔔 Alerting Rules
+
+The alerting stack has been significantly enhanced and refactored based on the [Awesome Prometheus Alerts](https://samber.github.io/awesome-prometheus-alerts/) collection. Alerts are now modularized in `prometheus/alerts/`:
+
+- **`host.yml`**: CPU, Memory, Disk, and Networking (errors, drops) alerts for Linux hosts.
+- **`docker.yml`**: Container health, resource usage, throttling, and kills.
+- **`proxmox.yml`**: Proxmox Node and Guest (VM/LXC) status and resource usage.
+- **`kubernetes.yml`**: Node status, Pod crash loops, API latency, and Kubelet health.
+- **`services.yml`**: Internal stack monitoring (Prometheus, Loki, Alertmanager).
+
+All alerts include direct links to relevant Grafana dashboards in Discord/Teams notifications for faster troubleshooting.
+
 ## 🤖 Automated Production Deployment
 
 The stack includes automation tools for production-ready deployment with minimal manual intervention.
@@ -354,6 +366,7 @@ chmod 600 ~/.ssh/authorized_keys
 ```
 
 After setting up the key, verify with:
+
 ```bash
 ssh root@192.168.1.100 echo "SSH OK"
 ```
@@ -363,24 +376,28 @@ ssh root@192.168.1.100 echo "SSH OK"
 If a target is reachable from the host but Prometheus shows it as "down", the Docker container may not have network access to the target.
 
 **1. Verify host-level connectivity:**
+
 ```bash
 # Test from the host (should work)
 nc -zv 192.168.1.100 9100
 ```
 
 **2. Test from inside the Prometheus container:**
+
 ```bash
 # If this fails, it's a Docker network issue
 docker exec prometheus wget -qO- http://192.168.1.100:9100/metrics | head -5
 ```
 
 **3. Check Docker network configuration:**
+
 ```bash
 docker network ls
 docker network inspect monitoring
 ```
 
 **4. Common solutions:**
+
 - Ensure the `monitoring` network uses the `bridge` driver (default)
 - Check if the host firewall allows Docker bridge traffic
 - For hosts on different subnets, ensure proper routing exists

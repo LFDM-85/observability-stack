@@ -1,0 +1,60 @@
+groups:
+  - name: kubernetes_alerts
+    interval: 1m
+    rules:
+      # Node Alerts
+      - alert: KubernetesNodeNotReady
+        expr: kube_node_status_condition{condition="Ready",status="true"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Kubernetes Node not ready ({{ $labels.node }})"
+          description: "Node {{ $labels.node }} has been unready for more than 5 minutes."
+
+      - alert: KubernetesNodeMemoryPressure
+        expr: kube_node_status_condition{condition="MemoryPressure",status="true"} == 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Kubernetes Node Memory Pressure ({{ $labels.node }})"
+          description: "Node {{ $labels.node }} is under memory pressure."
+          
+      # Pod Alerts
+      - alert: KubernetesPodCrashLooping
+        expr: rate(kube_pod_container_status_restarts_total[15m]) * 60 * 5 > 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Pod CrashLooping ({{ $labels.pod }})"
+          description: "Pod {{ $labels.pod }} is restarting frequently."
+
+      - alert: KubernetesPodNotHealthy
+        expr: min_over_time(sum by (namespace, pod) (kube_pod_status_phase{phase=~"Pending|Unknown|Failed"})[15m:1m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Pod Unhealthy ({{ $labels.pod }})"
+          description: "Pod {{ $labels.pod }} has been in a non-running state for more than 15 minutes."
+
+      # Control Plane Alerts
+      - alert: KubernetesApiServerLatency
+        expr: histogram_quantile(0.99, sum(rate(apiserver_request_duration_seconds_bucket{subresource!="log",verb!~"WATCH|WATCHLIST|PROXY|mCONNECT"}[5m])) WITHOUT (instance, node)) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Kubernetes API Server Latency High"
+          description: "99th percentile Latency is > 0.5s."
+
+      - alert: KubeletDown
+        expr: up{job="kubelet"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Kubelet Down ({{ $labels.instance }})"
+          description: "Kubelet on {{ $labels.instance }} is down."

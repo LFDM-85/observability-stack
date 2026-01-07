@@ -60,5 +60,6 @@ scrape_configs:
         target_label: instance
         replacement: '${1}'
 
+
 rule_files:
-  - "./alerts/alerts.yml"
+  - "./alerts/*.yml"

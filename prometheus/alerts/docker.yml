@@ -1,0 +1,53 @@
+groups:
+  - name: docker_alerts
+    interval: 30s
+    rules:
+      - alert: ContainerDown
+        expr: absent(container_last_seen{name=~".+"})
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} parado"
+          description: "O container {{ $labels.name }} na instância {{ $labels.instance }} não é visto há mais de 2 minutos"
+          dashboard: "http://localhost:3000/d/docker_containers"
+
+      - alert: ContainerHighCpuUsage
+        expr: (sum by(name, instance) (rate(container_cpu_usage_seconds_total{name=~".+"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Alto uso de CPU no container {{ $labels.name }}"
+          description: "O container {{ $labels.name }} está usando {{ $value | printf \"%.1f\" }}% de CPU"
+          dashboard: "http://localhost:3000/d/docker_containers"
+
+      - alert: ContainerHighMemoryUsage
+        expr: (container_memory_usage_bytes{name=~".+"} / container_spec_memory_limit_bytes{name=~".+"} * 100) > 90
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Alto uso de memória no container {{ $labels.name }}"
+          description: "O container {{ $labels.name }} está usando {{ $value | printf \"%.1f\" }}% do seu limite"
+          dashboard: "http://localhost:3000/d/docker_containers"
+          
+      - alert: ContainerKilled
+        expr: time() - container_last_seen > 60
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container killed ({{ $labels.name }})"
+          description: "Container {{ $labels.name }} disappeared recently."
+          dashboard: "http://localhost:3000/d/docker_containers"
+
+      - alert: ContainerHighThrottleRate
+        expr: rate(container_cpu_cfs_throttled_seconds_total[3m]) > 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container throttled ({{ $labels.name }})"
+          description: "Container {{ $labels.name }} is being throttled constantly."
+          dashboard: "http://localhost:3000/d/docker_containers"

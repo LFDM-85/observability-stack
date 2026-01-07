@@ -1,0 +1,68 @@
+groups:
+  - name: proxmox_alerts
+    interval: 1m
+    rules:
+      # Node Alerts
+      - alert: ProxmoxNodeDown
+        expr: up{job="proxmox"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Proxmox Node {{ $labels.instance }} down"
+          description: "Node {{ $labels.instance }} is unreachable."
+          
+      - alert: ProxmoxNodeHighCPU
+        expr: pve_node_cpu_usage_ratio * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Proxmox Node High CPU ({{ $labels.instance }})"
+          description: "Node CPU usage is at {{ $value | printf \"%.1f\" }}%."
+
+      - alert: ProxmoxNodeHighMemory
+        expr: pve_node_memory_usage_ratio * 100 > 90
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Proxmox Node High Memory ({{ $labels.instance }})"
+          description: "Node Memory usage is at {{ $value | printf \"%.1f\" }}%."
+
+      # Guest Alerts (VM/LXC)
+      - alert: ProxmoxGuestDown
+        expr: pve_guest_up == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Proxmox Guest down ({{ $labels.name }})"
+          description: "Virtual Machine/LXC {{ $labels.name }} is down."
+
+      - alert: ProxmoxGuestHighCPU
+        expr: pve_guest_cpu_usage_ratio * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Proxmox Guest High CPU ({{ $labels.name }})"
+          description: "Guest {{ $labels.name }} CPU usage is at {{ $value | printf \"%.1f\" }}%."
+
+      - alert: ProxmoxGuestHighMemory
+        expr: pve_guest_memory_usage_ratio * 100 > 90
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Proxmox Guest High Memory ({{ $labels.name }})"
+          description: "Guest {{ $labels.name }} Memory usage is at {{ $value | printf \"%.1f\" }}%."
+
+      - alert: ProxmoxStorageHighUsage
+        expr: pve_storage_usage_ratio * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Proxmox Storage High Usage ({{ $labels.storage }})"
+          description: "Storage {{ $labels.storage }} is at {{ $value | printf \"%.1f\" }}% usage."

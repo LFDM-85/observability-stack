@@ -1,0 +1,84 @@
+groups:
+  - name: host_alerts
+    interval: 30s
+    rules:
+      - alert: InstanceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Instância {{ $labels.instance }} está down"
+          description: "A instância {{ $labels.instance }} do job {{ $labels.job }} está inacessível há mais de 1 minuto."
+          dashboard: "http://localhost:3000/d/node_exporter_full?var-instance={{ $labels.instance }}"
+
+      - alert: HostHighCpuUsage
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Alto uso de CPU em {{ $labels.instance }}"
+          description: "CPU está em {{ $value | printf \"%.1f\" }}% na instância {{ $labels.instance }}"
+          dashboard: "http://localhost:3000/d/node_exporter_full?var-instance={{ $labels.instance }}"
+
+      - alert: HostHighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Alto uso de memória em {{ $labels.instance }}"
+          description: "Memória está em {{ $value | printf \"%.1f\" }}% na instância {{ $labels.instance }}"
+          dashboard: "http://localhost:3000/d/node_exporter_full?var-instance={{ $labels.instance }}"
+
+      - alert: HostOutOfDiskSpace
+        expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) * 100 < 10 and ON (instance, device, mountpoint) node_filesystem_readonly == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Sem espaço em disco em {{ $labels.instance }}"
+          description: "Disco {{ $labels.mountpoint }} tem apenas {{ $value | printf \"%.1f\" }}% de espaço livre."
+          dashboard: "http://localhost:3000/d/node_exporter_full?var-instance={{ $labels.instance }}"
+
+      - alert: HostDiskWillFillIn24Hours
+        expr: (node_filesystem_avail_bytes * 100) / node_filesystem_size_bytes < 10 and ON (instance, device, mountpoint) predict_linear(node_filesystem_avail_bytes{fstype!~"tmpfs"}[1h], 24 * 3600) < 0 and ON (instance, device, mountpoint) node_filesystem_readonly == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disco enchendo em {{ $labels.instance }}"
+          description: "O disco {{ $labels.mountpoint }} vai encher nas próximas 24h na velocidade atual."
+          dashboard: "http://localhost:3000/d/node_exporter_full?var-instance={{ $labels.instance }}"
+
+      - alert: HostHighLoad
+        expr: node_load1 / count by(instance) (node_cpu_seconds_total{mode="idle"}) > 2
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Load Average elevado em {{ $labels.instance }}"
+          description: "Load Average (1m) é 2x maior que o número de cores."
+          dashboard: "http://localhost:3000/d/node_exporter_full?var-instance={{ $labels.instance }}"
+
+      # Network Alerts
+      - alert: HostNetworkReceiveErrors
+        expr: rate(node_network_receive_errs_total[2m]) / rate(node_network_receive_packets_total[2m]) > 0.01
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Erros de rede (Receive) em {{ $labels.instance }}"
+          description: "Interface {{ $labels.device }} tem taxa de erros de recepção > 1%."
+          dashboard: "http://localhost:3000/d/node_exporter_full?var-instance={{ $labels.instance }}"
+
+      - alert: HostNetworkTransmitErrors
+        expr: rate(node_network_transmit_errs_total[2m]) / rate(node_network_transmit_packets_total[2m]) > 0.01
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Erros de rede (Transmit) em {{ $labels.instance }}"
+          description: "Interface {{ $labels.device }} tem taxa de erros de transmissão > 1%."
+          dashboard: "http://localhost:3000/d/node_exporter_full?var-instance={{ $labels.instance }}"
