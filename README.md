@@ -286,12 +286,62 @@ echo "ubuntu@10.0.0.120" >> hosts.txt
 # Deploy monitoring (auto-detects Docker)
 python3 scripts/deploy_monitor.py
 
-# Output shows:
-# 🔍 Detecting services on 10.0.0.50...
-#    ✓ Docker detected
-# 🐳 Installing cAdvisor...
+# ...
 # ✅ Docker monitoring configured
 ```
+
+### 🔐 Permissions & Troubleshooting (Non-root users)
+
+If you are using a non-root user (e.g., `ubuntu@10.0.1.50`), the deployment script requires **sudo** privileges to install services and move binaries.
+
+#### 1. Setup Passwordless Sudo (Recommended for Automation)
+
+To allow the script to run without a terminal interrupt, add your user to the sudoers file on the **target host**:
+
+```bash
+sudo visudo
+# Add this at the end:
+your_username ALL=(ALL) NOPASSWD: ALL
+```
+
+#### 2. Full Manual Recovery (If script fails midway)
+
+If the script fails due to a password prompt, the installation might be incomplete (e.g., binaries moved but service not created). Run this block on the **target host** to fix it:
+
+```bash
+# 1. Move binary to system path
+sudo mv /tmp/node_exporter-1.8.2.linux-amd64/node_exporter /usr/local/bin/
+
+# 2. Create system user
+sudo useradd -rs /bin/false node_exporter || true
+
+# 3. Create service unit
+sudo tee /etc/systemd/system/node_exporter.service <<EOF
+[Unit]
+Description=Node Exporter
+After=network.target
+
+[Service]
+User=node_exporter
+Group=node_exporter
+Type=simple
+ExecStart=/usr/local/bin/node_exporter
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# 4. Start and Enable
+sudo systemctl daemon-reload
+sudo systemctl start node_exporter
+sudo systemctl enable node_exporter
+```
+
+#### 3. Common Errors
+
+- `Permission denied`: The user needs `sudo` but it's not being used or failing.
+- `sudo: a terminal is required`: You haven't configured `NOPASSWD` and `sudo` is asking for a password.
+- `Unit node_exporter.service not found`: The script failed before creating the service file. Follow the **Manual Recovery** above.
 
 ## �️ Full Stack Observability (APM)
 
