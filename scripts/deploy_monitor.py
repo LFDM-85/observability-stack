@@ -17,6 +17,9 @@ NODE_EXPORTER_VERSION = "1.8.2"
 # CADVISOR Port
 CADVISOR_PORT = "9991"
 
+# Default Username
+USERNAME = "root"
+
 def test_ssh_connection(ip, username='root'):
     """Test if SSH key authentication is working."""
     if ip in ('127.0.0.1', 'localhost'):
@@ -76,9 +79,19 @@ def detect_services(ip):
 def load_hosts():
     if not os.path.exists(HOSTS_FILE):
         return []
+    hosts = []
     with open(HOSTS_FILE, 'r') as f:
-        lines = f.readlines()
-    return [line.strip() for line in lines if line.strip() and not line.strip().startswith('#')]
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            
+            if '@' in line:
+                user, ip = line.split('@', 1)
+                hosts.append((ip.strip(), user.strip()))
+            else:
+                hosts.append((line, None))
+    return hosts
 
 def load_targets():
     if not os.path.exists(TARGETS_FILE):
@@ -231,7 +244,7 @@ def ssh_command(ip, cmd, check=False):
             return None
     else:
         # Executar remotamente via SSH
-        ssh_cmd = ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=5", f"root@{ip}", cmd]
+        ssh_cmd = ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ConnectTimeout=5", f"{USERNAME}@{ip}", cmd]
         # If on Windows, we might need to ensure ssh is available, but usually it is in modern Win10/11
         try:
             result = subprocess.run(ssh_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
@@ -268,8 +281,9 @@ def install_node_exporter(ip):
     
     if res_bin and "/usr/local/bin/node_exporter" in res_bin:
         print(f"[{ip}] Node Exporter binary found, but service not active. Starting and enabling...")
-        ssh_command(ip, "systemctl daemon-reload && systemctl start node_exporter && systemctl enable node_exporter", check=True)
-        return True
+        sudo = "sudo " if USERNAME != "root" else ""
+        res = ssh_command(ip, f"{sudo}systemctl daemon-reload && {sudo}systemctl start node_exporter && {sudo}systemctl enable node_exporter", check=True)
+        return res is not None
 
     print(f"[{ip}] Installing Node Exporter v{NODE_EXPORTER_VERSION}...")
     
@@ -280,13 +294,14 @@ def install_node_exporter(ip):
             print(f"[{ip}] Warning: 'wget' is not installed. If Node Exporter download is needed, this will fail.")
     
     # Installation commands
+    sudo = "sudo " if USERNAME != "root" else ""
     commands = [
         f"cd /tmp && wget -q https://github.com/prometheus/node_exporter/releases/download/v{NODE_EXPORTER_VERSION}/node_exporter-{NODE_EXPORTER_VERSION}.linux-amd64.tar.gz",
         f"cd /tmp && tar xvfz node_exporter-{NODE_EXPORTER_VERSION}.linux-amd64.tar.gz",
-        f"mv /tmp/node_exporter-{NODE_EXPORTER_VERSION}.linux-amd64/node_exporter /usr/local/bin/",
+        f"{sudo}mv /tmp/node_exporter-{NODE_EXPORTER_VERSION}.linux-amd64/node_exporter /usr/local/bin/",
         "rm -rf /tmp/node_exporter-*",
-        "useradd -rs /bin/false node_exporter 2>/dev/null || true",
-        """echo '[Unit]
+        f"{sudo}useradd -rs /bin/false node_exporter 2>/dev/null || true",
+        f"""echo '[Unit]
 Description=Node Exporter
 After=network.target
 
@@ -297,10 +312,10 @@ Type=simple
 ExecStart=/usr/local/bin/node_exporter
 
 [Install]
-WantedBy=multi-user.target' | tee /etc/systemd/system/node_exporter.service > /dev/null""",
-        "systemctl daemon-reload",
-        "systemctl start node_exporter",
-        "systemctl enable node_exporter"
+WantedBy=multi-user.target' | {sudo}tee /etc/systemd/system/node_exporter.service > /dev/null""",
+        f"{sudo}systemctl daemon-reload",
+        f"{sudo}systemctl start node_exporter",
+        f"{sudo}systemctl enable node_exporter"
     ]
     
     for i, cmd in enumerate(commands):
@@ -327,11 +342,12 @@ def install_cadvisor(ip):
     cadvisor_version = "v0.47.0"
     
     # Installation commands
+    sudo = "sudo " if USERNAME != "root" else ""
     commands = [
         f"cd /tmp && wget -q https://github.com/google/cadvisor/releases/download/{cadvisor_version}/cadvisor-{cadvisor_version}-linux-amd64",
         f"chmod +x /tmp/cadvisor-{cadvisor_version}-linux-amd64",
-        f"mv /tmp/cadvisor-{cadvisor_version}-linux-amd64 /usr/local/bin/cadvisor",
-        """echo '[Unit]
+        f"{sudo}mv /tmp/cadvisor-{cadvisor_version}-linux-amd64 /usr/local/bin/cadvisor",
+        f"""echo '[Unit]
 Description=cAdvisor
 After=network.target
 
@@ -341,10 +357,10 @@ ExecStart=/usr/local/bin/cadvisor -port={CADVISOR_PORT}
 Restart=always
 
 [Install]
-WantedBy=multi-user.target' | tee /etc/systemd/system/cadvisor.service > /dev/null""",
-        "systemctl daemon-reload",
-        "systemctl start cadvisor",
-        "systemctl enable cadvisor"
+WantedBy=multi-user.target' | {sudo}tee /etc/systemd/system/cadvisor.service > /dev/null""",
+        f"{sudo}systemctl daemon-reload",
+        f"{sudo}systemctl start cadvisor",
+        f"{sudo}systemctl enable cadvisor"
     ]
     
     for i, cmd in enumerate(commands):
@@ -372,10 +388,11 @@ def install_mysqld_exporter(ip):
     
     # Create MySQL monitoring user
     print(f"[{ip}] Creating MySQL monitoring user...")
-    mysql_user_cmd = """mysql -e "CREATE USER IF NOT EXISTS 'exporter'@'localhost' IDENTIFIED BY 'exporterpass' WITH MAX_USER_CONNECTIONS 3;
+    sudo = "sudo " if USERNAME != "root" else ""
+    mysql_user_cmd = f"""{sudo}mysql -e "CREATE USER IF NOT EXISTS 'exporter'@'localhost' IDENTIFIED BY 'exporterpass' WITH MAX_USER_CONNECTIONS 3;
 GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'exporter'@'localhost';
 FLUSH PRIVILEGES;" 2>/dev/null || \
-mariadb -e "CREATE USER IF NOT EXISTS 'exporter'@'localhost' IDENTIFIED BY 'exporterpass' WITH MAX_USER_CONNECTIONS 3;
+{sudo}mariadb -e "CREATE USER IF NOT EXISTS 'exporter'@'localhost' IDENTIFIED BY 'exporterpass' WITH MAX_USER_CONNECTIONS 3;
 GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'exporter'@'localhost';
 FLUSH PRIVILEGES;" 2>/dev/null"""
     
@@ -384,16 +401,17 @@ FLUSH PRIVILEGES;" 2>/dev/null"""
         print(f"⚠️  Could not create MySQL user. Continuing anyway (may already exist)...")
     
     # Installation commands
+    sudo = "sudo " if USERNAME != "root" else ""
     commands = [
         f"cd /tmp && wget -q https://github.com/prometheus/mysqld_exporter/releases/download/v{exporter_version}/mysqld_exporter-{exporter_version}.linux-amd64.tar.gz",
         f"cd /tmp && tar xzf mysqld_exporter-{exporter_version}.linux-amd64.tar.gz",
-        f"mv /tmp/mysqld_exporter-{exporter_version}.linux-amd64/mysqld_exporter /usr/local/bin/",
+        f"{sudo}mv /tmp/mysqld_exporter-{exporter_version}.linux-amd64/mysqld_exporter /usr/local/bin/",
         "rm -rf /tmp/mysqld_exporter-*",
-        "useradd -rs /bin/false mysqld_exporter 2>/dev/null || true",
-        "mkdir -p /etc/mysqld_exporter",
-        """echo 'DATA_SOURCE_NAME="exporter:exporterpass@(localhost:3306)/"' | tee /etc/mysqld_exporter/mysqld_exporter.env > /dev/null""",
-        "chmod 600 /etc/mysqld_exporter/mysqld_exporter.env",
-        """echo '[Unit]
+        f"{sudo}useradd -rs /bin/false mysqld_exporter 2>/dev/null || true",
+        f"{sudo}mkdir -p /etc/mysqld_exporter",
+        f"""echo 'DATA_SOURCE_NAME="exporter:exporterpass@(localhost:3306)/"' | {sudo}tee /etc/mysqld_exporter/mysqld_exporter.env > /dev/null""",
+        f"{sudo}chmod 600 /etc/mysqld_exporter/mysqld_exporter.env",
+        f"""echo '[Unit]
 Description=MySQL Exporter
 After=network.target
 
@@ -405,10 +423,10 @@ ExecStart=/usr/local/bin/mysqld_exporter --web.listen-address=:9104
 Restart=always
 
 [Install]
-WantedBy=multi-user.target' | tee /etc/systemd/system/mysqld_exporter.service > /dev/null""",
-        "systemctl daemon-reload",
-        "systemctl start mysqld_exporter",
-        "systemctl enable mysqld_exporter"
+WantedBy=multi-user.target' | {sudo}tee /etc/systemd/system/mysqld_exporter.service > /dev/null""",
+        f"{sudo}systemctl daemon-reload",
+        f"{sudo}systemctl start mysqld_exporter",
+        f"{sudo}systemctl enable mysqld_exporter"
     ]
     
     for i, cmd in enumerate(commands):
@@ -467,7 +485,12 @@ def main():
                        help='Setup SSH keys before deployment')
     parser.add_argument('--skip-health-check', action='store_true',
                        help='Skip health verification after deployment')
+    parser.add_argument('--username', '-u', default='root',
+                       help='SSH username (default: root)')
     args = parser.parse_args()
+    
+    global USERNAME
+    USERNAME = args.username
     
     print("🚀 Node Exporter Deployment Script")
     print("=" * 50)
@@ -495,9 +518,12 @@ def main():
     changes_made = False
     results = []
     
-    for ip in hosts:
+    for ip, specific_user in hosts:
+        # Determine which user to use for this host
+        current_username = specific_user if specific_user else USERNAME
+        
         print(f"\n{'='*50}")
-        print(f"Processing: {ip}")
+        print(f"Processing: {current_username}@{ip}")
         print(f"{'='*50}\n")
         
         # Skip localhost - already monitored
@@ -507,12 +533,20 @@ def main():
             continue
         
         # Check SSH connectivity
-        if not test_ssh_connection(ip):
-            print(f"✗ SSH key authentication failed for {ip}")
-            print(f"   Please run: python3 scripts/setup_ssh_key.py {ip}")
+        # IMPORTANT: We must temporarily update the global USERNAME so helper functions use it
+        # This is a hack because helper functions rely on global USERNAME
+        original_global_username = USERNAME
+        USERNAME = current_username
+        
+        if not test_ssh_connection(ip, current_username):
+            print(f"✗ SSH key authentication failed for {current_username}@{ip}")
+            print(f"   Please run: python3 scripts/setup_ssh_key.py {ip} --username {current_username}")
             print(f"   Or run with --setup-keys flag\n")
             results.append((ip, 'ssh_failed'))
+            # Restore global username before continuing
+            USERNAME = original_global_username
             continue
+
         
         # Detect services on the host
         detected_services = detect_services(ip)
@@ -568,14 +602,15 @@ def main():
         else:
             print(f"❌ Failed to install Node Exporter on {ip}")
             results.append((ip, 'new_failed'))
+        
+        # Restore global username for next iteration
+        USERNAME = original_global_username
 
     # Save targets if there were changes
     if changes_made:
         save_targets(targets)
         print(f"\n✅ Updated {TARGETS_FILE}")
         print("📊 Prometheus should pick up changes automatically")
-    else:
-        print("\n⚠️  No changes made to targets.")
 
     # Always ensure dashboards are correctly configured
     print("\n🔧 Checking Grafana dashboards...")

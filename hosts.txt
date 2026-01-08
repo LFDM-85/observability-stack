@@ -1,2 +1,4 @@
 # Add IPs here, one per line
+# Format: IP_ADDRESS or USER@IP_ADDRESS
 192.168.90.104
+luismelo@10.10.1.156

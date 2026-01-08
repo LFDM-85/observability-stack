@@ -276,8 +276,12 @@ The deployment script automatically detects and monitors:
 **Example workflow:**
 
 ```bash
-# Add server with Docker to hosts.txt
-echo "10.0.0.50" >> hosts.txt
+# Add servers to hosts.txt
+# Option 1: Just IP (assumes root user)
+echo "192.168.1.50" > hosts.txt
+
+# Option 2: Specific User (recommended for non-root servers)
+echo "ubuntu@10.0.0.120" >> hosts.txt
 
 # Deploy monitoring (auto-detects Docker)
 python3 scripts/deploy_monitor.py
