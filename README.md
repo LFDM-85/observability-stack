@@ -295,18 +295,47 @@ The stack now supports **Application Performance Monitoring** and **Distributed 
 
 ### 1. Application Tracing & Metrics (OTLP)
 
-Point your applications (Frontend, Backend, Mobile) to the **Alloy** collector using the standard OTLP protocol. Alloy will automatically route:
+Point your applications to the **Alloy** collector using the standard OTLP protocol. Alloy acts as a unified receiver and automatically routes:
 
-- **Traces** -> Grafana Tempo
-- **Metrics** -> Prometheus
-- **Logs** -> Loki
+- **Traces** → Grafana Tempo
+- **Metrics** → Prometheus
+- **Logs** → Loki
 
-**Configuration:**
+**Endpoints:**
 
-- **OTLP gRPC Endpoint:** `http://<monitoring-ip>:4317`
-- **OTLP HTTP Endpoint:** `http://<monitoring-ip>:4318`
+- **gRPC:** `http://<monitoring-server-ip>:4317` (Recommended for production)
+- **HTTP:** `http://<monitoring-server-ip>:4318` (Easier for web/testing)
 
-### 2. Reverse Proxy Monitoring (Traefik)
+#### 📝 Instrumentation Example
+
+You don't need to change your stack's architecture. Just add the OpenTelemetry SDK to your app.
+
+**Example (Node.js/Python/Go/Java):**
+Most OpenTelemetry SDKs are configured simply via environment variables:
+
+```bash
+# Point to the Monitoring Server (Alloy)
+export OTEL_EXPORTER_OTLP_ENDPOINT="http://monitor.local:4317"
+export OTEL_SERVICE_NAME="my-backend-service"
+export OTEL_TRACES_EXPORTER="otlp"
+export OTEL_METRICS_EXPORTER="otlp"
+```
+
+### 2. Viewing Traces in Grafana
+
+Once your application is sending data, you can visualize the full journey of requests:
+
+1.  **Go to Explore**: Open Grafana (`http://localhost:3000`) and click on the Compass icon (Explore).
+2.  **Select Source**: Choose **Tempo** from the top dropdown.
+3.  **Search Traces**:
+    - Use the **Search** tab to find traces by `Service Name`, `Duration`, or HTTP tags.
+    - Click on a **Trace ID** to open the Waterfall view.
+4.  **Waterfall View**:
+    - This view shows the entire request lifecycle.
+    - **Bars** represent spans (individual operations).
+    - You can pinpoint exactly where latency occurs (e.g., "Why did this API call take 2s?" -> "Ah, the SQL query took 1.8s").
+
+### 3. Reverse Proxy Monitoring (Traefik)
 
 Includes a dedicated Prometheus job for **Traefik**.
 
