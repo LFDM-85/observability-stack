@@ -12,44 +12,64 @@ groups:
           description: "A instância {{ $labels.instance }} do job {{ $labels.job }} está inacessível há mais de 1 minuto."
           dashboard: "http://localhost:3000/d/node_exporter_full?var-instance={{ $labels.instance }}"
 
-      - alert: HostHighCpuUsage
+      - alert: HostCpuHighUsageWarning
         expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
         for: 5m
         labels:
           severity: warning
         annotations:
-          summary: "Alto uso de CPU em {{ $labels.instance }}"
-          description: "CPU está em {{ $value | printf \"%.1f\" }}% na instância {{ $labels.instance }}"
+          summary: "Uso de CPU elevado (Warning) em {{ $labels.instance }}"
+          description: "CPU está acima de 80% (atual: {{ $value | printf \"%.1f\" }}%) na instância {{ $labels.instance }} há mais de 5 minutos."
           dashboard: "http://localhost:3000/d/node_exporter_full?var-instance={{ $labels.instance }}"
 
-      - alert: HostHighMemoryUsage
-        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: "Alto uso de memória em {{ $labels.instance }}"
-          description: "Memória está em {{ $value | printf \"%.1f\" }}% na instância {{ $labels.instance }}"
-          dashboard: "http://localhost:3000/d/node_exporter_full?var-instance={{ $labels.instance }}"
-
-      - alert: HostOutOfDiskSpace
-        expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) * 100 < 10 and ON (instance, device, mountpoint) node_filesystem_readonly == 0
+      - alert: HostCpuHighUsageCritical
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 95
         for: 2m
         labels:
           severity: critical
         annotations:
-          summary: "Sem espaço em disco em {{ $labels.instance }}"
-          description: "Disco {{ $labels.mountpoint }} tem apenas {{ $value | printf \"%.1f\" }}% de espaço livre."
+          summary: "Uso de CPU Crítico em {{ $labels.instance }}"
+          description: "CPU está acima de 95% (atual: {{ $value | printf \"%.1f\" }}%) na instância {{ $labels.instance }}!"
           dashboard: "http://localhost:3000/d/node_exporter_full?var-instance={{ $labels.instance }}"
 
-      - alert: HostDiskWillFillIn24Hours
-        expr: (node_filesystem_avail_bytes * 100) / node_filesystem_size_bytes < 10 and ON (instance, device, mountpoint) predict_linear(node_filesystem_avail_bytes{fstype!~"tmpfs"}[1h], 24 * 3600) < 0 and ON (instance, device, mountpoint) node_filesystem_readonly == 0
-        for: 2m
+      - alert: HostMemoryHighUsageWarning
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 80
+        for: 5m
         labels:
           severity: warning
         annotations:
-          summary: "Disco enchendo em {{ $labels.instance }}"
-          description: "O disco {{ $labels.mountpoint }} vai encher nas próximas 24h na velocidade atual."
+          summary: "Uso de Memória elevado (Warning) em {{ $labels.instance }}"
+          description: "Memória está acima de 80% (atual: {{ $value | printf \"%.1f\" }}%) na instância {{ $labels.instance }} há mais de 5 minutos."
+          dashboard: "http://localhost:3000/d/node_exporter_full?var-instance={{ $labels.instance }}"
+
+      - alert: HostMemoryHighUsageCritical
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Uso de Memória Crítico em {{ $labels.instance }}"
+          description: "Memória está acima de 95% (atual: {{ $value | printf \"%.1f\" }}%) na instância {{ $labels.instance }}!"
+          dashboard: "http://localhost:3000/d/node_exporter_full?var-instance={{ $labels.instance }}"
+
+      - alert: HostDiskSpaceWarning
+        expr: ((node_filesystem_avail_bytes / node_filesystem_size_bytes) * 100 < 15 or predict_linear(node_filesystem_avail_bytes{fstype!~"tmpfs"}[1h], 24 * 3600) < 0) and ON (instance, device, mountpoint) node_filesystem_readonly == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Pouco espaço em disco (Warning) em {{ $labels.instance }}"
+          description: "O disco {{ $labels.mountpoint }} tem menos de 15% livre ou prevê-se que encha em 24h na instância {{ $labels.instance }}."
+          dashboard: "http://localhost:3000/d/node_exporter_full?var-instance={{ $labels.instance }}"
+
+      - alert: HostDiskSpaceCritical
+        expr: ((node_filesystem_avail_bytes / node_filesystem_size_bytes) * 100 < 5 or predict_linear(node_filesystem_avail_bytes{fstype!~"tmpfs"}[1h], 6 * 3600) < 0) and ON (instance, device, mountpoint) node_filesystem_readonly == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Pouco espaço em disco Crítico em {{ $labels.instance }}"
+          description: "O disco {{ $labels.mountpoint }} tem menos de 5% livre ou prevê-se que encha em 6h na instância {{ $labels.instance }}!"
           dashboard: "http://localhost:3000/d/node_exporter_full?var-instance={{ $labels.instance }}"
 
       - alert: HostHighLoad
@@ -59,7 +79,7 @@ groups:
           severity: warning
         annotations:
           summary: "Load Average elevado em {{ $labels.instance }}"
-          description: "Load Average (1m) é 2x maior que o número de cores."
+          description: "Load Average (1m) é 2x maior que o número de cores na instância {{ $labels.instance }}."
           dashboard: "http://localhost:3000/d/node_exporter_full?var-instance={{ $labels.instance }}"
 
       # Network Alerts
