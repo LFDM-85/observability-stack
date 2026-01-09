@@ -2,8 +2,7 @@
   {
     "targets": [],
     "labels": {
-      "job": "remote_mysql",
-      "env": "production"
+      "env": "internal"
     }
   }
 ]

@@ -128,8 +128,7 @@ def add_target(ip, targets):
         targets.append({
             "targets": [target_str],
             "labels": {
-                "job": "remote_hosts",
-                "env": "production"
+                "env": "prod"
             }
         })
     return targets
@@ -165,8 +164,7 @@ def add_docker_target(ip):
         targets.append({
             "targets": [target_str],
             "labels": {
-                "job": "remote_docker",
-                "env": "production"
+                "env": "prod"
             }
         })
     
@@ -208,8 +206,7 @@ def add_mysql_target(ip):
         targets.append({
             "targets": [target_str],
             "labels": {
-                "job": "remote_mysql",
-                "env": "production"
+                "env": "prod"
             }
         })
     
