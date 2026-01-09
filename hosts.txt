@@ -1,4 +1,8 @@
-# Add IPs here, one per line
-# Format: IP_ADDRESS or USER@IP_ADDRESS
-192.168.90.104
-luismelo@10.10.1.156
+# Add IPs here, one per line (if user is root, just use IP_ADDRESS)
+# Format: IP_ADDRESS or USER@IP_ADDRESS (if user is not root)
+192.168.1.136
+192.168.1.130
+192.168.1.131
+192.168.1.135
+192.168.1.133
+192.168.1.134

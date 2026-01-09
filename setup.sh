@@ -26,6 +26,17 @@ check_file() {
     fi
 }
 
+# Function to check directory for matching files
+check_dir_with_files() {
+    if [ -d "$1" ] && ls "$1"/*.yml >/dev/null 2>&1; then
+        echo -e "${GREEN}✓${NC} $1/*.yml"
+        return 0
+    else
+        echo -e "${RED}✗${NC} $1/*.yml ${RED}(MISSING or EMPTY)${NC}"
+        return 1
+    fi
+}
+
 # Check mandatory files
 echo -e "${BLUE}📄 Checking configuration files...${NC}"
 echo ""
@@ -37,7 +48,7 @@ check_file "docker-compose.yml" || ((missing_count++))
 
 # Prometheus
 check_file "prometheus/prometheus.yml" || ((missing_count++))
-check_file "prometheus/alerts/alerts.yml" || ((missing_count++))
+check_dir_with_files "prometheus/alerts" || ((missing_count++))
 
 # Loki
 check_file "loki/loki-config.yml" || ((missing_count++))
@@ -97,7 +108,7 @@ if [ $missing_count -ne 0 ]; then
     echo "   ├── docker-compose.yml"
     echo "   ├── prometheus/"
     echo "   │   ├── prometheus.yml"
-    echo "   │   └── alerts/alerts.yml"
+    echo "   │   └── alerts/*.yml"
     echo "   ├── loki/loki-config.yml"
     echo "   ├── tempo/tempo.yaml"
     echo "   ├── alloy/config.alloy"
