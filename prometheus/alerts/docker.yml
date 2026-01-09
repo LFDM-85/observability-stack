@@ -22,6 +22,16 @@ groups:
           description: "O container {{ $labels.name }} está usando {{ $value | printf \"%.1f\" }}% de CPU"
           dashboard: "http://localhost:3000/d/docker_containers"
 
+      - alert: ContainerHighCpuUsageCritical
+        expr: (sum by(name, instance) (rate(container_cpu_usage_seconds_total{name=~".+"}[5m])) * 100) > 95
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Uso CRÍTICO de CPU no container {{ $labels.name }}"
+          description: "O container {{ $labels.name }} está usando {{ $value | printf \"%.1f\" }}% de CPU!"
+          dashboard: "http://localhost:3000/d/docker_containers"
+
       - alert: ContainerHighMemoryUsage
         expr: (container_memory_usage_bytes{name=~".+"} / container_spec_memory_limit_bytes{name=~".+"} * 100) > 90
         for: 5m
@@ -30,6 +40,16 @@ groups:
         annotations:
           summary: "Alto uso de memória no container {{ $labels.name }}"
           description: "O container {{ $labels.name }} está usando {{ $value | printf \"%.1f\" }}% do seu limite"
+          dashboard: "http://localhost:3000/d/docker_containers"
+
+      - alert: ContainerHighMemoryUsageCritical
+        expr: (container_memory_usage_bytes{name=~".+"} / container_spec_memory_limit_bytes{name=~".+"} * 100) > 98
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Uso CRÍTICO de memória no container {{ $labels.name }}"
+          description: "O container {{ $labels.name }} está usando {{ $value | printf \"%.1f\" }}% do seu limite!"
           dashboard: "http://localhost:3000/d/docker_containers"
           
       - alert: ContainerKilled
@@ -50,4 +70,14 @@ groups:
         annotations:
           summary: "Container throttled ({{ $labels.name }})"
           description: "Container {{ $labels.name }} is being throttled constantly."
+          dashboard: "http://localhost:3000/d/docker_containers"
+
+      - alert: ContainerRestartsHigh
+        expr: count by (name, instance) (changes(container_last_seen{name!=""}[15m])) > 3
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} reiniciando frequentemente"
+          description: "O container {{ $labels.name }} reiniciou {{ $value }} vezes nos últimos 15 minutos."
           dashboard: "http://localhost:3000/d/docker_containers"

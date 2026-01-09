@@ -20,6 +20,24 @@ groups:
         annotations:
           summary: "Kubernetes Node Memory Pressure ({{ $labels.node }})"
           description: "Node {{ $labels.node }} is under memory pressure."
+
+      - alert: KubernetesNodeDiskPressure
+        expr: kube_node_status_condition{condition="DiskPressure",status="true"} == 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Kubernetes Node Disk Pressure ({{ $labels.node }})"
+          description: "Node {{ $labels.node }} is under disk pressure."
+
+      - alert: KubernetesNodeNetworkUnavailable
+        expr: kube_node_status_condition{condition="NetworkUnavailable",status="true"} == 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Kubernetes Node Network Unavailable ({{ $labels.node }})"
+          description: "Node {{ $labels.node }} network is unavailable."
           
       # Pod Alerts
       - alert: KubernetesPodCrashLooping
@@ -30,6 +48,15 @@ groups:
         annotations:
           summary: "Pod CrashLooping ({{ $labels.pod }})"
           description: "Pod {{ $labels.pod }} is restarting frequently."
+
+      - alert: KubernetesPodCrashLoopingCritical
+        expr: rate(kube_pod_container_status_restarts_total[15m]) * 60 * 5 > 5
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "CRITICAL: Pod CrashLooping ({{ $labels.pod }})"
+          description: "Pod {{ $labels.pod }} is crashlooping heavily."
 
       - alert: KubernetesPodNotHealthy
         expr: min_over_time(sum by (namespace, pod) (kube_pod_status_phase{phase=~"Pending|Unknown|Failed"})[15m:1m]) > 0

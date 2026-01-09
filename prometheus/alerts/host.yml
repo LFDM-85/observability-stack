@@ -102,3 +102,33 @@ groups:
           summary: "Erros de rede (Transmit) em {{ $labels.instance }}"
           description: "Interface {{ $labels.device }} tem taxa de erros de transmissão > 1%."
           dashboard: "http://localhost:3000/d/node_exporter_full?var-instance={{ $labels.instance }}"
+
+      - alert: HostHighIOWait
+        expr: avg by (instance) (rate(node_cpu_seconds_total{mode="iowait"}[5m])) * 100 > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "I/O Wait elevado em {{ $labels.instance }}"
+          description: "O sistema está gastando muito tempo aguardando I/O de disco ({{ $value | printf \"%.1f\" }}%)."
+          dashboard: "http://localhost:3000/d/node_exporter_full?var-instance={{ $labels.instance }}"
+
+      - alert: HostOOMKill
+        expr: increase(node_vmstat_oom_kill[5m]) > 0
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "OOM Kill detectado em {{ $labels.instance }}"
+          description: "O kernel encerrou processos devido à falta de memória na instância {{ $labels.instance }}."
+          dashboard: "http://localhost:3000/d/node_exporter_full?var-instance={{ $labels.instance }}"
+
+      - alert: HostTcpConnectionsHigh
+        expr: node_netstat_Tcp_CurrEstab > 10000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Número elevado de conexões TCP em {{ $labels.instance }}"
+          description: "A instância {{ $labels.instance }} tem mais de 10.000 conexões TCP estabelecidas (atual: {{ $value }})."
+          dashboard: "http://localhost:3000/d/node_exporter_full?var-instance={{ $labels.instance }}"

@@ -21,6 +21,15 @@ groups:
           summary: "Proxmox Node High CPU ({{ $labels.instance }})"
           description: "Node CPU usage is at {{ $value | printf \"%.1f\" }}%."
 
+      - alert: ProxmoxNodeHighCPUCritical
+        expr: pve_node_cpu_usage_ratio * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "CRITICAL: Proxmox Node High CPU ({{ $labels.instance }})"
+          description: "Node CPU usage is at {{ $value | printf \"%.1f\" }}%!"
+
       - alert: ProxmoxNodeHighMemory
         expr: pve_node_memory_usage_ratio * 100 > 90
         for: 10m
@@ -29,6 +38,24 @@ groups:
         annotations:
           summary: "Proxmox Node High Memory ({{ $labels.instance }})"
           description: "Node Memory usage is at {{ $value | printf \"%.1f\" }}%."
+
+      - alert: ProxmoxNodeHighMemoryCritical
+        expr: pve_node_memory_usage_ratio * 100 > 98
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "CRITICAL: Proxmox Node High Memory ({{ $labels.instance }})"
+          description: "Node Memory usage is at {{ $value | printf \"%.1f\" }}%!"
+
+      - alert: ProxmoxNodeHighIOWait
+        expr: pve_node_cpu_iowait_ratio * 100 > 15
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Proxmox Node High I/O Wait ({{ $labels.instance }})"
+          description: "Node is experiencing high disk I/O wait ({{ $value | printf \"%.1f\" }}%)."
 
       # Guest Alerts (VM/LXC)
       - alert: ProxmoxGuestDown
@@ -66,3 +93,21 @@ groups:
         annotations:
           summary: "Proxmox Storage High Usage ({{ $labels.storage }})"
           description: "Storage {{ $labels.storage }} is at {{ $value | printf \"%.1f\" }}% usage."
+
+      - alert: ProxmoxStorageHighUsageCritical
+        expr: pve_storage_usage_ratio * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "CRITICAL: Proxmox Storage High Usage ({{ $labels.storage }})"
+          description: "Storage {{ $labels.storage }} is at {{ $value | printf \"%.1f\" }}%!"
+
+      - alert: ProxmoxStoragePredictiveFill
+        expr: predict_linear(pve_storage_usage_ratio[1h], 24 * 3600) > 1
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Proxmox Storage enchendo ({{ $labels.storage }})"
+          description: "Previsão de que o storage {{ $labels.storage }} fique cheio em 24h na instância {{ $labels.instance }}."

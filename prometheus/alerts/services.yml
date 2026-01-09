@@ -31,8 +31,18 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: "Taxa de erros alta no Loki"
-          description: "Loki está retornando {{ $value }}% de erros 5xx na rota {{ $labels.route }}"
+          summary: "Taxa de erros CRÍTICA no Loki"
+          description: "Loki está retornando {{ $value }}% de erros 5xx na rota {{ $labels.route }}."
+          dashboard: "http://localhost:3000"
+
+      - alert: LokiRequestErrorsWarning
+        expr: 100 * sum(rate(loki_request_duration_seconds_count{status_code=~"5.."}[5m])) by (namespace, job, route) / sum(rate(loki_request_duration_seconds_count[5m])) by (namespace, job, route) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Taxa de erros elevada no Loki"
+          description: "Loki está retornando {{ $value }}% de erros 5xx na rota {{ $labels.route }}."
           dashboard: "http://localhost:3000"
 
   - name: storage_alerts
@@ -42,8 +52,18 @@ groups:
         expr: prometheus_tsdb_storage_blocks_bytes / 10737418240 > 0.9
         for: 10m
         labels:
+          severity: critical
+        annotations:
+          summary: "Armazenamento do Prometheus quase cheio (CRÍTICO)"
+          description: "Prometheus está usando {{ $value }}% do limite de 10GB configurado!"
+          dashboard: "http://localhost:3000/d/prometheus_overview"
+
+      - alert: PrometheusStoragePredictiveFill
+        expr: predict_linear(prometheus_tsdb_storage_blocks_bytes[1h], 24 * 3600) > 10737418240
+        for: 1h
+        labels:
           severity: warning
         annotations:
-          summary: "Armazenamento do Prometheus quase cheio"
-          description: "Prometheus está usando {{ $value }}% do limite de 10GB configurado"
+          summary: "Prometheus Storage enchendo"
+          description: "Previsão de que o armazenamento do Prometheus exceda o limite de 10GB em 24h."
           dashboard: "http://localhost:3000/d/prometheus_overview"
