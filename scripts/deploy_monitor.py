@@ -267,7 +267,7 @@ def ssh_command(ip, cmd, check=False):
                 print(f"[{ip}] TIP: Ensure SSH is enabled and authorized_keys is configured for root.")
             return None
 
-def install_node_exporter(ip):
+def install_node_exporter(ip, arch="amd64"):
     """Install Node Exporter on the given IP"""
     print(f"🔧 Installing Node Exporter on {ip}...")
     
@@ -277,38 +277,62 @@ def install_node_exporter(ip):
         return True
     
     # Check if Node Exporter is already installed and running
+    # check=False because is-active returns non-zero if not active, we want to handle that string
     check_cmd = "systemctl is-active node_exporter"
-    status = ssh_command(ip, check_cmd, check=True)
+    status = ssh_command(ip, check_cmd, check=False)
+    
     if status and status.strip() == "active":
         print(f"✓ Node Exporter already running on {ip}")
         return True
     
-    if status and "failed" in status:
-        print(f"⚠️  Node Exporter service is in FAILED state. Attempting repair/reinstall...")
-        # Force stop and cleanup to allow fresh install
-        ssh_command(ip, "systemctl stop node_exporter && systemctl disable node_exporter && rm -f /etc/systemd/system/node_exporter.service", check=True)
-        # Continue to installation logic below...
+    should_reinstall = False
+    
+    if status and ("failed" in status or "activating" in status):
+        print(f"⚠️  Node Exporter service is in state: {status.strip()}. Scheduling clean reinstall...")
+        should_reinstall = True
     elif status and "inactive" in status:
         print(f"ℹ️  Node Exporter service exists but is inactive. Attempting to start...")
         ssh_command(ip, "systemctl start node_exporter", check=True)
         time.sleep(2)
-        if ssh_command(ip, check_cmd, check=True).strip() == "active":
+        # Check again
+        new_status = ssh_command(ip, check_cmd, check=False)
+        if new_status and new_status.strip() == "active":
              print(f"✓ Node Exporter started successfully")
              return True
         else:
-             print(f"⚠️  Failed to start existing service. Proceeding with reinstall...")
-    
-    # Check if binary exists but service isn't running
-    check_bin_cmd = "ls /usr/local/bin/node_exporter"
-    res_bin = ssh_command(ip, check_bin_cmd)
-    
-    if res_bin and "/usr/local/bin/node_exporter" in res_bin:
-        print(f"[{ip}] Node Exporter binary found, but service not active. Starting and enabling...")
-        sudo = "sudo " if USERNAME != "root" else ""
-        res = ssh_command(ip, f"{sudo}systemctl daemon-reload && {sudo}systemctl start node_exporter && {sudo}systemctl enable node_exporter", check=True)
-        return res is not None
+             print(f"⚠️  Failed to start existing service (Status: {new_status.strip() if new_status else 'Unknown'}). Scheduling clean reinstall...")
+             should_reinstall = True
+             
+    if should_reinstall:
+        # Force stop and cleanup to allow fresh install
+        print(f"   🧹 Removing old service and binary...")
+        ssh_command(ip, "systemctl stop node_exporter", check=False)
+        ssh_command(ip, "systemctl disable node_exporter", check=False)
+        ssh_command(ip, "rm -f /etc/systemd/system/node_exporter.service", check=False)
+        ssh_command(ip, "rm -f /usr/local/bin/node_exporter", check=False)
+        # Proceed to installation logic below...
+    else:
+        # Check if binary exists but service isn't running (and wasn't just checked above)
+        check_bin_cmd = "ls /usr/local/bin/node_exporter"
+        res_bin = ssh_command(ip, check_bin_cmd, check=False)
+        
+        if res_bin and "/usr/local/bin/node_exporter" in res_bin:
+            print(f"[{ip}] Node Exporter binary found, but service not active/configured. Starting/Enabling...")
+            sudo = "sudo " if USERNAME != "root" else ""
+            res = ssh_command(ip, f"{sudo}systemctl daemon-reload && {sudo}systemctl start node_exporter && {sudo}systemctl enable node_exporter", check=False)
+            
+            # Verify if it actually started
+            time.sleep(2)
+            final_status = ssh_command(ip, check_cmd, check=False)
+            if final_status and final_status.strip() == "active":
+                return True
+            else:
+                print(f"⚠️  Failed to start existing binary. It might be corrupted. Proceeding with reinstall...")
+                # Cleanup
+                ssh_command(ip, "rm -f /usr/local/bin/node_exporter", check=False)
 
-    print(f"[{ip}] Installing Node Exporter v{NODE_EXPORTER_VERSION}...")
+
+    print(f"[{ip}] Installing Node Exporter v{NODE_EXPORTER_VERSION} ({arch})...")
     
     # Check for wget if running locally and installation is needed
     if ip in ("127.0.0.1", "localhost"):
@@ -319,9 +343,9 @@ def install_node_exporter(ip):
     # Installation commands
     sudo = "sudo " if USERNAME != "root" else ""
     commands = [
-        f"cd /tmp && wget -q https://github.com/prometheus/node_exporter/releases/download/v{NODE_EXPORTER_VERSION}/node_exporter-{NODE_EXPORTER_VERSION}.linux-amd64.tar.gz",
-        f"cd /tmp && tar xvfz node_exporter-{NODE_EXPORTER_VERSION}.linux-amd64.tar.gz",
-        f"{sudo}mv /tmp/node_exporter-{NODE_EXPORTER_VERSION}.linux-amd64/node_exporter /usr/local/bin/",
+        f"cd /tmp && wget -q https://github.com/prometheus/node_exporter/releases/download/v{NODE_EXPORTER_VERSION}/node_exporter-{NODE_EXPORTER_VERSION}.linux-{arch}.tar.gz",
+        f"cd /tmp && tar xvfz node_exporter-{NODE_EXPORTER_VERSION}.linux-{arch}.tar.gz",
+        f"{sudo}mv /tmp/node_exporter-{NODE_EXPORTER_VERSION}.linux-{arch}/node_exporter /usr/local/bin/",
         "rm -rf /tmp/node_exporter-*",
         f"{sudo}useradd -rs /bin/false node_exporter 2>/dev/null || true",
         f"""echo '[Unit]
@@ -572,12 +596,37 @@ def main():
 
         
         
+        # Validate OS and Architecture
+        os_info = ssh_command(ip, "cat /etc/os-release | grep PRETTY_NAME", check=False) or "Unknown Linux"
+        print(f"   💻 OS: {os_info.replace('PRETTY_NAME=', '').strip().strip('\"')}")
+        
+        arch = ssh_command(ip, "uname -m", check=True).strip()
+        go_arch = "amd64"
+        if "aarch64" in arch or "armv8" in arch:
+            go_arch = "arm64"
+        elif "armv7" in arch:
+            go_arch = "armv7"
+        print(f"   cpu: {arch} (binary: {go_arch})")
+        
+        # Check port availability (firewall or other services)
+        print(f"   🔍 Checking ports...")
+        for port, name in [(9100, "Node Exporter"), (9991, "cAdvisor"), (9104, "MySQL Exporter")]:
+            # Check if port is listening
+            listening = ssh_command(ip, f"netstat -tuln | grep :{port} || ss -tuln | grep :{port}", check=False)
+            if listening:
+               # Check if it's our service
+               proc = ssh_command(ip, f"lsof -i :{port} || netstat -tulpn | grep :{port}", check=False)
+               print(f"      - Port {port} ({name}) is LISTENING")
+            else:
+               # Validate if we can bind (not blocked by firewall logic, but verifies if free)
+               print(f"      - Port {port} ({name}) is FREE")
+
         # Detect services on the host
         detected_services = detect_services(ip)
         print()  # Blank line for readability
         
         # Always ensure Node Exporter is installed and running
-        node_exporter_success = install_node_exporter(ip)
+        node_exporter_success = install_node_exporter(ip, go_arch)
         
         if node_exporter_success:
             # Add to targets if not already present
