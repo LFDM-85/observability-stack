@@ -3,13 +3,25 @@ groups:
     interval: 30s
     rules:
       - alert: ContainerDown
-        expr: absent(container_last_seen{name=~".+"})
+        expr: time() - max by (name, instance) (container_last_seen{name!=""}) > 300
         for: 2m
         labels:
           severity: warning
         annotations:
           summary: "Container {{ $labels.name }} parado"
-          description: "O container {{ $labels.name }} na instância {{ $labels.instance }} não é visto há mais de 2 minutos"
+          description: "O container {{ $labels.name }} na instância {{ $labels.instance }} não é visto há mais de 5 minutos."
+          dashboard: "http://localhost:3000/d/docker_containers"
+
+      - alert: ContainerMemoryPredictiveFill
+        expr: |
+          (predict_linear(container_memory_usage_bytes{name!=""}[1h], 3600) / 
+           container_spec_memory_limit_bytes{name!=""} * 100) > 100
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} vai esgotar memória em 1h"
+          description: "Previsão de que o container {{ $labels.name }} atinja 100% do limite de memória em 1 hora."
           dashboard: "http://localhost:3000/d/docker_containers"
 
       - alert: ContainerHighCpuUsage

@@ -200,12 +200,28 @@ The stack automatically provisions popular dashboards and matching alerting rule
 - **Prometheus Overview**: Health and performance of the Prometheus server.
 - **Grafana Alloy**: Monitoring for the telemetry collector.
 
-### Proactive Alerts
+### Proactive & Predictive Alerts 🔮
 
-- **Predictive Disk Monitoring**: Alerts when a disk is projected to be full in 24h based on current trends.
-- **Resource Limits**: Alerts for high CPU/Memory usage at both host and container levels.
-- **System Load**: Detects high Load Average relative to the number of CPU cores.
-- **Container Health**: Monitors for containers stopping or crash-looping.
+This stack includes **59 alert rules** across 6 categories with modern predictive capabilities:
+
+| Category | Alerts | Predictive |
+|----------|--------|------------|
+| Host Monitoring | 18 | 4 |
+| Docker/Containers | 9 | 1 |
+| Kubernetes | 11 | 3 |
+| Proxmox | 11 | 1 |
+| Services | 6 | 1 |
+| SLO-Based | 4 | - |
+
+**Key Features:**
+
+- **Predictive Disk/Memory Monitoring**: Uses `predict_linear()` to forecast exhaustion 2-24h in advance.
+- **CPU Trend Detection**: Alerts when CPU usage is high AND trending upward.
+- **SLO Error Budget Burn Rate**: Multi-window, multi-burn-rate alerts based on Google SRE practices.
+- **Apdex Score Monitoring**: Application performance index tracking.
+- **Smart Inhibitions**: Avoids alert storms by suppressing related alerts.
+
+> 📄 See [ALERTS.md](ALERTS.md) for complete alert reference documentation.
 
 ## ⚙️ Configuration Highlights
 

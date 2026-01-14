@@ -1,0 +1,94 @@
+groups:
+  - name: slo_alerts
+    interval: 1m
+    rules:
+      # Error Budget Burn Rate Alerts (Multi-window, Multi-burn-rate)
+      # Based on Google SRE practices for SLO alerting
+      
+      # Fast burn - 2% of monthly error budget in 1 hour
+      - alert: SLOErrorBudgetFastBurn
+        expr: |
+          (
+            sum(rate(http_requests_total{status=~"5.."}[5m])) 
+            / sum(rate(http_requests_total[5m]))
+          ) > 14.4 * 0.001
+          and
+          (
+            sum(rate(http_requests_total{status=~"5.."}[1h])) 
+            / sum(rate(http_requests_total[1h]))
+          ) > 14.4 * 0.001
+        for: 2m
+        labels:
+          severity: critical
+          slo_type: availability
+        annotations:
+          summary: "SLO Error Budget burning fast"
+          description: "Error rate is 14.4x above SLO threshold. At this rate, monthly error budget will be exhausted in 1 hour."
+
+      # Slow burn - 5% of monthly error budget in 6 hours  
+      - alert: SLOErrorBudgetSlowBurn
+        expr: |
+          (
+            sum(rate(http_requests_total{status=~"5.."}[30m])) 
+            / sum(rate(http_requests_total[30m]))
+          ) > 6 * 0.001
+          and
+          (
+            sum(rate(http_requests_total{status=~"5.."}[6h])) 
+            / sum(rate(http_requests_total[6h]))
+          ) > 6 * 0.001
+        for: 15m
+        labels:
+          severity: warning
+          slo_type: availability
+        annotations:
+          summary: "SLO Error Budget burning slowly"
+          description: "Error rate is 6x above SLO threshold. At this rate, monthly error budget will be exhausted in 4 hours."
+
+      # Latency SLO - P99 latency above threshold
+      - alert: SLOLatencyHigh
+        expr: |
+          histogram_quantile(0.99, 
+            sum by(le, job) (rate(http_request_duration_seconds_bucket[5m]))
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          slo_type: latency
+        annotations:
+          summary: "P99 latency above 500ms SLO"
+          description: "99th percentile latency is {{ $value | printf \"%.2f\" }}s, above the 500ms SLO target."
+
+      # Availability SLO - Success rate below target
+      - alert: SLOAvailabilityLow
+        expr: |
+          (
+            sum(rate(http_requests_total{status!~"5.."}[1h])) 
+            / sum(rate(http_requests_total[1h]))
+          ) < 0.999
+        for: 10m
+        labels:
+          severity: critical
+          slo_type: availability
+        annotations:
+          summary: "Availability below 99.9% SLO"
+          description: "Service availability is {{ $value | printf \"%.4f\" | humanizePercentage }}, below the 99.9% SLO target."
+
+  - name: apdex_alerts
+    interval: 30s
+    rules:
+      # Apdex Score Alert (Application Performance Index)
+      # Apdex = (Satisfied + Tolerating/2) / Total
+      # T = 0.5s (satisfied), 4*T = 2s (tolerating)
+      - alert: ApdexScoreLow
+        expr: |
+          (
+            sum(rate(http_request_duration_seconds_bucket{le="0.5"}[5m])) +
+            sum(rate(http_request_duration_seconds_bucket{le="2"}[5m])) / 2
+          ) / sum(rate(http_request_duration_seconds_count[5m])) < 0.85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Apdex score is low"
+          description: "Application Apdex score is {{ $value | printf \"%.2f\" }}, below the 0.85 threshold."

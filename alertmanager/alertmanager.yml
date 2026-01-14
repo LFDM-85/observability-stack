@@ -2,11 +2,31 @@ global:
   resolve_timeout: 5m
 
 route:
-  group_by: ['alertname', 'cluster', 'service']
-  group_wait: 10s
-  group_interval: 10s
-  repeat_interval: 12h
+  group_by: ['alertname', 'severity', 'instance', 'job']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
   receiver: 'webhook-default'
+  routes:
+    # Critical alerts - faster repeat and dedicated handling
+    - match:
+        severity: critical
+      receiver: 'webhook-critical'
+      repeat_interval: 30m
+      continue: true
+    
+    # SLO alerts - special grouping
+    - match_re:
+        alertname: 'SLO.*'
+      receiver: 'webhook-default'
+      group_by: ['alertname', 'slo_type']
+      repeat_interval: 1h
+    
+    # Warning alerts - standard handling
+    - match:
+        severity: warning
+      receiver: 'webhook-default'
+      repeat_interval: 4h
 
 receivers:
   - name: 'webhook-default'
@@ -14,9 +34,29 @@ receivers:
       - url: 'http://webhook-adapter:8080/alerts'
         send_resolved: true
 
+  - name: 'webhook-critical'
+    webhook_configs:
+      - url: 'http://webhook-adapter:8080/alerts'
+        send_resolved: true
+
 inhibit_rules:
+  # Critical alerts inhibit warning alerts for the same issue
   - source_match:
       severity: 'critical'
     target_match:
       severity: 'warning'
     equal: ['alertname', 'instance']
+  
+  # InstanceDown inhibits all other alerts for that instance
+  - source_match:
+      alertname: 'InstanceDown'
+    target_match_re:
+      alertname: 'Host.*'
+    equal: ['instance']
+  
+  # ContainerDown inhibits container-level alerts
+  - source_match:
+      alertname: 'ContainerDown'
+    target_match_re:
+      alertname: 'Container.*'
+    equal: ['name', 'instance']

@@ -85,3 +85,33 @@ groups:
         annotations:
           summary: "Kubelet Down ({{ $labels.instance }})"
           description: "Kubelet on {{ $labels.instance }} is down."
+
+      # Predictive Alerts
+      - alert: KubernetesPVCCapacityPrediction
+        expr: predict_linear(kubelet_volume_stats_available_bytes[1h], 24 * 3600) < 0
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "PVC {{ $labels.persistentvolumeclaim }} vai encher em 24h"
+          description: "O PVC {{ $labels.persistentvolumeclaim }} no namespace {{ $labels.namespace }} prevê esgotar espaço em 24 horas."
+
+      - alert: KubernetesHPAMaxReplicas
+        expr: kube_horizontalpodautoscaler_status_current_replicas == kube_horizontalpodautoscaler_spec_max_replicas
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "HPA {{ $labels.horizontalpodautoscaler }} no máximo de replicas"
+          description: "O HPA {{ $labels.horizontalpodautoscaler }} está no limite máximo de replicas e pode não conseguir escalar mais."
+
+      - alert: KubernetesPodMemoryPrediction
+        expr: |
+          predict_linear(container_memory_usage_bytes{namespace!="", pod!=""}[1h], 3600) > 
+          on(namespace, pod) kube_pod_container_resource_limits{resource="memory"}
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Pod {{ $labels.pod }} vai esgotar limite de memória em 1h"
+          description: "Previsão de que o pod {{ $labels.pod }} atinja o limite de memória em 1 hora."

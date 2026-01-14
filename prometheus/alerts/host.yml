@@ -132,3 +132,47 @@ groups:
           summary: "Número elevado de conexões TCP em {{ $labels.instance }}"
           description: "A instância {{ $labels.instance }} tem mais de 10.000 conexões TCP estabelecidas (atual: {{ $value }})."
           dashboard: "http://localhost:3000/d/node_exporter_full?var-instance={{ $labels.instance }}"
+
+      # Predictive Alerts
+      - alert: HostMemoryPredictiveFill
+        expr: predict_linear(node_memory_MemAvailable_bytes[1h], 2 * 3600) < 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Esgotamento de memória previsto em {{ $labels.instance }}"
+          description: "Previsão de que a memória disponível se esgote em 2 horas na instância {{ $labels.instance }} com base na tendência atual."
+          dashboard: "http://localhost:3000/d/node_exporter_full?var-instance={{ $labels.instance }}"
+
+      - alert: HostCpuTrendWarning
+        expr: |
+          avg by(instance) (rate(node_cpu_seconds_total{mode!="idle"}[1h])) * 100 > 70
+          and
+          deriv(avg by(instance) (rate(node_cpu_seconds_total{mode!="idle"}[5m]))[30m:5m]) > 0
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Tendência de CPU crescente em {{ $labels.instance }}"
+          description: "O uso de CPU está acima de 70% e a tendência é de crescimento nos últimos 30 minutos."
+          dashboard: "http://localhost:3000/d/node_exporter_full?var-instance={{ $labels.instance }}"
+
+      - alert: HostSwapUsageWarning
+        expr: (1 - (node_memory_SwapFree_bytes / node_memory_SwapTotal_bytes)) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Uso de Swap elevado em {{ $labels.instance }}"
+          description: "Swap está acima de 80% (atual: {{ $value | printf \"%.1f\" }}%) na instância {{ $labels.instance }}."
+          dashboard: "http://localhost:3000/d/node_exporter_full?var-instance={{ $labels.instance }}"
+
+      - alert: HostFilesystemInodesPrediction
+        expr: predict_linear(node_filesystem_files_free{fstype!~"tmpfs|overlay"}[1h], 24 * 3600) < 0
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Previsão de esgotamento de inodes em {{ $labels.instance }}"
+          description: "O sistema de ficheiros {{ $labels.mountpoint }} prevê esgotar inodes em 24h."
+          dashboard: "http://localhost:3000/d/node_exporter_full?var-instance={{ $labels.instance }}"
