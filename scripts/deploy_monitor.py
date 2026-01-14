@@ -546,32 +546,19 @@ def main():
             continue
 
         
+        
         # Detect services on the host
         detected_services = detect_services(ip)
         print()  # Blank line for readability
         
-        # Check if already configured
-        if is_target_configured(ip, targets):
-            print(f"✓ Host {ip} already configured in Prometheus targets.")
-            # Ensure Node Exporter is installed and running even if target is configured
-            if install_node_exporter(ip):
-                if not args.skip_health_check:
-                    if verify_target_health(ip):
-                        results.append((ip, 'configured_healthy'))
-                    else:
-                        results.append((ip, 'configured_unhealthy'))
-                else:
-                    results.append((ip, 'configured_skipped_health'))
-            else:
-                print(f"❌ Failed to ensure Node Exporter is running on {ip}")
-                results.append((ip, 'configured_install_failed'))
-            continue # Move to next host
+        # Always ensure Node Exporter is installed and running
+        node_exporter_success = install_node_exporter(ip)
         
-        # New host - install Node Exporter and add to targets
-        print(f"\n▶️  Processing new host: {ip}")
-        if install_node_exporter(ip):
-            targets = add_target(ip, targets)
-            changes_made = True
+        if node_exporter_success:
+            # Add to targets if not already present
+            if not is_target_configured(ip, targets):
+                targets = add_target(ip, targets)
+                changes_made = True
             
             # Install cAdvisor if Docker is detected
             if detected_services.get('docker'):
@@ -589,17 +576,18 @@ def main():
                 else:
                     print(f"⚠️  Failed to install MySQL Exporter on {ip}")
             
-            print(f"✅ Host {ip} configured successfully")
+            print(f"✅ Host {ip} processed successfully")
+            
             if not args.skip_health_check:
                 if verify_target_health(ip):
-                    results.append((ip, 'new_healthy'))
+                    results.append((ip, 'healthy'))
                 else:
-                    results.append((ip, 'new_unhealthy'))
+                    results.append((ip, 'unhealthy'))
             else:
-                results.append((ip, 'new_skipped_health'))
+                results.append((ip, 'skipped_health'))
         else:
-            print(f"❌ Failed to install Node Exporter on {ip}")
-            results.append((ip, 'new_failed'))
+            print(f"❌ Failed to ensure Node Exporter on {ip}")
+            results.append((ip, 'failed'))
         
         # Restore global username for next iteration
         USERNAME = original_global_username
