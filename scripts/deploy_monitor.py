@@ -59,9 +59,13 @@ def detect_services(ip):
         services['docker'] = True
         print(f"   ✓ Docker detected")
     
-    # Check for MySQL/MariaDB
+    # Check for MySQL/MariaDB (Systemd or Docker)
     mysql_check = ssh_command(ip, "systemctl is-active mysql 2>/dev/null || systemctl is-active mariadb 2>/dev/null", check=True)
-    if mysql_check and mysql_check.strip() == "active":
+    mysql_docker_check = ""
+    if services['docker']:
+        mysql_docker_check = ssh_command(ip, "docker ps --format '{{.Image}} {{.Names}}' | grep -E 'mysql|mariadb' || true", check=True)
+
+    if (mysql_check and mysql_check.strip() == "active") or (mysql_docker_check and mysql_docker_check.strip()):
         services['mysql'] = True
         print(f"   ✓ MySQL/MariaDB detected")
     
