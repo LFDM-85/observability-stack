@@ -59,13 +59,18 @@ def detect_services(ip):
         services['docker'] = True
         print(f"   ✓ Docker detected")
     
-    # Check for MySQL/MariaDB (Systemd or Docker)
+    # Check for MySQL/MariaDB (Systemd, Docker, or Port 3306)
     mysql_check = ssh_command(ip, "systemctl is-active mysql 2>/dev/null || systemctl is-active mariadb 2>/dev/null", check=True)
     mysql_docker_check = ""
     if services['docker']:
         mysql_docker_check = ssh_command(ip, "docker ps --format '{{.Image}} {{.Names}}' | grep -E 'mysql|mariadb' || true", check=True)
+    
+    # Also check TCP port 3306 (more reliable for custom Docker containers)
+    mysql_port_check = ssh_command(ip, "netstat -tuln | grep :3306 || ss -tuln | grep :3306 || true", check=True)
 
-    if (mysql_check and mysql_check.strip() == "active") or (mysql_docker_check and mysql_docker_check.strip()):
+    if (mysql_check and mysql_check.strip() == "active") or \
+       (mysql_docker_check and mysql_docker_check.strip()) or \
+       (mysql_port_check and "3306" in mysql_port_check):
         services['mysql'] = True
         print(f"   ✓ MySQL/MariaDB detected")
     
@@ -273,9 +278,25 @@ def install_node_exporter(ip):
     
     # Check if Node Exporter is already installed and running
     check_cmd = "systemctl is-active node_exporter"
-    if ssh_command(ip, check_cmd, check=True) and ssh_command(ip, check_cmd, check=True).strip() == "active":
+    status = ssh_command(ip, check_cmd, check=True)
+    if status and status.strip() == "active":
         print(f"✓ Node Exporter already running on {ip}")
         return True
+    
+    if status and "failed" in status:
+        print(f"⚠️  Node Exporter service is in FAILED state. Attempting repair/reinstall...")
+        # Force stop and cleanup to allow fresh install
+        ssh_command(ip, "systemctl stop node_exporter && systemctl disable node_exporter && rm -f /etc/systemd/system/node_exporter.service", check=True)
+        # Continue to installation logic below...
+    elif status and "inactive" in status:
+        print(f"ℹ️  Node Exporter service exists but is inactive. Attempting to start...")
+        ssh_command(ip, "systemctl start node_exporter", check=True)
+        time.sleep(2)
+        if ssh_command(ip, check_cmd, check=True).strip() == "active":
+             print(f"✓ Node Exporter started successfully")
+             return True
+        else:
+             print(f"⚠️  Failed to start existing service. Proceeding with reinstall...")
     
     # Check if binary exists but service isn't running
     check_bin_cmd = "ls /usr/local/bin/node_exporter"
