@@ -15729,7 +15729,7 @@
           "pluginVersion": "11.6.1",
           "targets": [
             {
-              "expr": "count(container_last_seen{image!=\"\"})",
+              "expr": "count(container_last_seen{image!=\"\", instance=~\"$node.*\"})",
               "legendFormat": "Containers",
               "refId": "A"
             }
@@ -15781,7 +15781,7 @@
           },
           "targets": [
             {
-              "expr": "sum(rate(container_cpu_usage_seconds_total{image!=\"\"}[5m])) by (name) * 100",
+              "expr": "sum(rate(container_cpu_usage_seconds_total{image!=\"\", instance=~\"$node.*\"}[5m])) by (name) * 100",
               "legendFormat": "{{name}}",
               "refId": "A"
             }
@@ -15833,7 +15833,7 @@
           },
           "targets": [
             {
-              "expr": "sum(container_memory_usage_bytes{image!=\"\"}) by (name)",
+              "expr": "sum(container_memory_usage_bytes{image!=\"\", instance=~\"$node.*\"}) by (name)",
               "legendFormat": "{{name}}",
               "refId": "A"
             }
@@ -15915,7 +15915,7 @@
           "pluginVersion": "11.6.1",
           "targets": [
             {
-              "expr": "mysql_up",
+              "expr": "mysql_up{instance=~\"$node.*\"}",
               "legendFormat": "{{instance}}",
               "refId": "A"
             }
@@ -15967,7 +15967,7 @@
           },
           "targets": [
             {
-              "expr": "mysql_global_status_threads_connected",
+              "expr": "mysql_global_status_threads_connected{instance=~\"$node.*\"}",
               "legendFormat": "{{instance}}",
               "refId": "A"
             }
@@ -16019,7 +16019,7 @@
           },
           "targets": [
             {
-              "expr": "rate(mysql_global_status_queries[5m])",
+              "expr": "rate(mysql_global_status_queries{instance=~\"$node.*\"}[5m])",
               "legendFormat": "{{instance}}",
               "refId": "A"
             }
