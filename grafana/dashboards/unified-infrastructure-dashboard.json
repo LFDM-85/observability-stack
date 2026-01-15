@@ -844,7 +844,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "count(container_last_seen{job=\"remote_docker\"})",
+          "expr": "count(container_last_seen{job=~\"remote_docker|monitoring_stack\"})",
           "refId": "A"
         }
       ],
@@ -899,7 +899,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "sum(rate(container_cpu_usage_seconds_total{job=\"remote_docker\",container!=\"\"}[5m]))",
+          "expr": "sum(rate(container_cpu_usage_seconds_total{job=~\"remote_docker|monitoring_stack\",container!=\"\"}[5m]))",
           "refId": "A"
         }
       ],
@@ -954,7 +954,7 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "sum(container_memory_usage_bytes{job=\"remote_docker\",container!=\"\"})",
+          "expr": "sum(container_memory_usage_bytes{job=~\"remote_docker|monitoring_stack\",container!=\"\"})",
           "refId": "A"
         }
       ],
@@ -1065,13 +1065,13 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "sum by (instance, name) (rate(container_cpu_usage_seconds_total{job=\"remote_docker\",container!=\"\"}[5m])) * 100",
+          "expr": "sum by (instance, name) (rate(container_cpu_usage_seconds_total{job=~\"remote_docker|monitoring_stack\",container!=\"\"}[5m])) * 100",
           "format": "table",
           "instant": true,
           "refId": "CPU"
         },
         {
-          "expr": "sum by (instance, name) (container_memory_usage_bytes{job=\"remote_docker\",container!=\"\"})",
+          "expr": "sum by (instance, name) (container_memory_usage_bytes{job=~\"remote_docker|monitoring_stack\",container!=\"\"})",
           "format": "table",
           "instant": true,
           "refId": "Memory"
