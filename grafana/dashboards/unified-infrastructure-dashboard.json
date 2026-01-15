@@ -63,11 +63,11 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "values": false,
           "calcs": [
             "lastNotNull"
           ],
-          "fields": ""
+          "fields": "",
+          "values": false
         },
         "textMode": "auto"
       },
@@ -86,12 +86,23 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
+      "description": "Número de hosts offline. Verifica a tabela abaixo para os nomes.",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "thresholds"
           },
-          "mappings": [],
+          "mappings": [
+            {
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "0"
+                }
+              },
+              "type": "special"
+            }
+          ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -122,18 +133,18 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "values": false,
           "calcs": [
             "lastNotNull"
           ],
-          "fields": ""
+          "fields": "",
+          "values": false
         },
-        "textMode": "auto"
+        "textMode": "value_and_name"
       },
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "count(up{job=\"remote_hosts\"} == 0)",
+          "expr": "count(up{job=\"remote_hosts\"} == 0) or vector(0)",
           "refId": "A"
         }
       ],
@@ -181,11 +192,11 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "values": false,
           "calcs": [
             "lastNotNull"
           ],
-          "fields": ""
+          "fields": "",
+          "values": false
         },
         "textMode": "auto"
       },
@@ -240,11 +251,11 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "values": false,
           "calcs": [
             "lastNotNull"
           ],
-          "fields": ""
+          "fields": "",
+          "values": false
         },
         "textMode": "auto"
       },
@@ -265,6 +276,9 @@
       },
       "fieldConfig": {
         "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
           "custom": {
             "align": "left",
             "cellOptions": {
@@ -281,9 +295,6 @@
                 "value": null
               }
             ]
-          },
-          "color": {
-            "mode": "thresholds"
           }
         },
         "overrides": [
@@ -334,8 +345,8 @@
               {
                 "id": "custom.cellOptions",
                 "value": {
-                  "type": "gauge",
-                  "mode": "gradient"
+                  "mode": "gradient",
+                  "type": "gauge"
                 }
               },
               {
@@ -377,8 +388,8 @@
               {
                 "id": "custom.cellOptions",
                 "value": {
-                  "type": "gauge",
-                  "mode": "gradient"
+                  "mode": "gradient",
+                  "type": "gauge"
                 }
               },
               {
@@ -410,6 +421,88 @@
           {
             "matcher": {
               "id": "byName",
+              "options": "Swap %"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "lcd",
+                  "type": "gauge"
+                }
+              },
+              {
+                "id": "max",
+                "value": 100
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 20
+                    },
+                    {
+                      "color": "red",
+                      "value": 50
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+           {
+            "matcher": {
+              "id": "byName",
+              "options": "Load 1m"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                 "id": "decimals",
+                 "value": 2
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "basic",
+                  "type": "auto"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": null
+                    },
+                    {
+                      "color": "red",
+                      "value": 4
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
               "options": "Disk %"
             },
             "properties": [
@@ -420,8 +513,8 @@
               {
                 "id": "custom.cellOptions",
                 "value": {
-                  "type": "gauge",
-                  "mode": "gradient"
+                  "mode": "gradient",
+                  "type": "gauge"
                 }
               },
               {
@@ -460,19 +553,20 @@
       },
       "id": 5,
       "options": {
-        "showHeader": true,
         "cellHeight": "sm",
+        "countRows": false,
         "footer": {
-          "show": false,
+          "fields": "",
           "reducer": [
             "sum"
           ],
-          "countRows": false,
-          "fields": ""
+          "show": false
         },
         "frameIndex": 0,
+        "showHeader": true,
         "sortBy": [
           {
+            "desc": false,
             "displayName": "Status"
           }
         ]
@@ -498,13 +592,31 @@
           "refId": "Memory"
         },
         {
+          "expr": "node_load1{job=\"remote_hosts\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "Load"
+        },
+        {
+           "expr": "(1 - (node_memory_SwapFree_bytes{job=\"remote_hosts\"} / node_memory_SwapTotal_bytes{job=\"remote_hosts\"})) * 100",
+           "format": "table",
+           "instant": true,
+           "refId": "Swap"
+        },
+        {
           "expr": "100 - ((node_filesystem_avail_bytes{job=\"remote_hosts\",mountpoint=\"/\",fstype!=\"rootfs\"} / node_filesystem_size_bytes{job=\"remote_hosts\",mountpoint=\"/\",fstype!=\"rootfs\"}) * 100)",
           "format": "table",
           "instant": true,
           "refId": "Disk"
+        },
+        {
+          "expr": "node_uname_info{job=\"remote_hosts\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "Names"
         }
       ],
-      "title": "Hosts Overview",
+      "title": "Hosts Overview & Health",
       "transformations": [
         {
           "id": "merge",
@@ -515,24 +627,42 @@
           "options": {
             "excludeByName": {
               "Time": true,
-              "job": true,
               "__name__": true,
-              "env": true
+              "env": true,
+              "job": true,
+              "machine": true,
+              "release": true,
+              "sysname": true,
+              "version": true,
+              "domainname": true
             },
             "indexByName": {
-              "instance": 0,
+              "nodename": 0,
               "Value #Status": 1,
-              "Value #CPU": 2,
-              "Value #Memory": 3,
-              "Value #Disk": 4
+              "Value #Load": 2,
+              "Value #CPU": 3,
+              "Value #Memory": 4,
+              "Value #Swap": 5,
+              "Value #Disk": 6
             },
             "renameByName": {
-              "instance": "Host",
+              "nodename": "Hostname",
+              "instance": "IP Address",
               "Value #Status": "Status",
               "Value #CPU": "CPU %",
               "Value #Memory": "Memory %",
-              "Value #Disk": "Disk %"
+              "Value #Disk": "Disk %",
+              "Value #Load": "Load 1m",
+              "Value #Swap": "Swap %"
             }
+          }
+        },
+        {
+          "id": "filterFieldsByName",
+          "options": {
+             "include": {
+                "names": ["Hostname", "Status", "Load 1m", "CPU %", "Memory %", "Swap %", "Disk %"]
+             }
           }
         }
       ],
@@ -558,9 +688,9 @@
             "fillOpacity": 20,
             "gradientMode": "none",
             "hideFrom": {
+              "legend": false,
               "tooltip": false,
-              "viz": false,
-              "legend": false
+              "viz": false
             },
             "lineInterpolation": "linear",
             "lineWidth": 1,
@@ -647,9 +777,9 @@
             "fillOpacity": 20,
             "gradientMode": "none",
             "hideFrom": {
+              "legend": false,
               "tooltip": false,
-              "viz": false,
-              "legend": false
+              "viz": false
             },
             "lineInterpolation": "linear",
             "lineWidth": 1,
@@ -766,11 +896,455 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "values": false,
           "calcs": [
             "lastNotNull"
           ],
-          "fields": ""
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "expr": "count(container_last_seen{job=\"remote_docker\"})",
+          "refId": "A"
+        }
+      ],
+      "title": "Total Containers",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 8,
+        "y": 23
+      },
+      "id": 10,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "expr": "sum(rate(container_cpu_usage_seconds_total{job=\"remote_docker\",container!=\"\"}[5m]))",
+          "refId": "A"
+        }
+      ],
+      "title": "Total CPU Cores Used",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 16,
+        "y": 23
+      },
+      "id": 11,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "expr": "sum(container_memory_usage_bytes{job=\"remote_docker\",container!=\"\"})",
+          "refId": "A"
+        }
+      ],
+      "title": "Total Memory Used",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "left",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CPU %"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "gradient",
+                  "type": "gauge"
+                }
+              },
+              {
+                "id": "max",
+                "value": 100
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Memory"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 27
+      },
+      "id": 12,
+      "options": {
+        "cellHeight": "sm",
+        "countRows": false,
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "frameIndex": 0,
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "CPU %"
+          }
+        ]
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "expr": "rate(container_cpu_usage_seconds_total{job=\"remote_docker\",container!=\"\"}[5m]) * 100",
+          "format": "table",
+          "instant": true,
+          "refId": "CPU"
+        },
+        {
+          "expr": "container_memory_usage_bytes{job=\"remote_docker\",container!=\"\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "Memory"
+        }
+      ],
+      "title": "Docker Containers Details",
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "id": true,
+              "image": false,
+              "job": true,
+              "name": false
+            },
+            "indexByName": {
+              "instance": 0,
+              "name": 1,
+              "image": 2,
+              "Value #CPU": 3,
+              "Value #Memory": 4
+            },
+            "renameByName": {
+              "Value #CPU": "CPU %",
+              "Value #Memory": "Memory",
+              "image": "Image",
+              "instance": "Host",
+              "name": "Container"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 37
+      },
+      "id": 13,
+      "panels": [],
+      "title": "MySQL Databases",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 0,
+        "y": 38
+      },
+      "id": 14,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "expr": "count(mysql_up{job=\"remote_mysql\"} == 1)",
+          "refId": "A"
+        }
+      ],
+      "title": "MySQL Instances Up",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 8,
+        "y": 38
+      },
+      "id": 15,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "expr": "sum(rate(mysql_global_status_queries{job=\"remote_mysql\"}[5m]))",
+          "refId": "A"
+        }
+      ],
+      "title": "Total Queries/sec",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 16,
+        "y": 38
+      },
+      "id": 16,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
         },
         "textMode": "auto"
       },
@@ -791,6 +1365,9 @@
       },
       "fieldConfig": {
         "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
           "custom": {
             "align": "left",
             "cellOptions": {
@@ -808,9 +1385,7 @@
               }
             ]
           },
-          "color": {
-            "mode": "thresholds"
-          }
+          "unit": "short"
         },
         "overrides": [
           {
@@ -885,17 +1460,17 @@
       },
       "id": 17,
       "options": {
-        "showHeader": true,
         "cellHeight": "sm",
+        "countRows": false,
         "footer": {
-          "show": false,
+          "fields": "",
           "reducer": [
             "sum"
           ],
-          "countRows": false,
-          "fields": ""
+          "show": false
         },
         "frameIndex": 0,
+        "showHeader": true,
         "sortBy": []
       },
       "pluginVersion": "10.0.0",
@@ -930,9 +1505,9 @@
           "options": {
             "excludeByName": {
               "Time": true,
-              "job": true,
               "__name__": true,
-              "env": true
+              "env": true,
+              "job": true
             },
             "indexByName": {
               "instance": 0,
@@ -941,10 +1516,10 @@
               "Value #Connections": 3
             },
             "renameByName": {
-              "instance": "MySQL Instance",
-              "Value #Status": "Status",
+              "Value #Connections": "Connections",
               "Value #QPS": "QPS",
-              "Value #Connections": "Connections"
+              "Value #Status": "Status",
+              "instance": "MySQL Instance"
             }
           }
         }
@@ -971,449 +1546,6 @@
   "timezone": "",
   "title": "Infrastructure Overview - Unified Dashboard",
   "uid": "infrastructure-overview",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }
-        "orientation": "auto",
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": ""
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "10.0.0",
-      "targets": [
-        {
-          "expr": "count(container_last_seen{job=\"remote_docker\"})",
-          "refId": "A"
-        }
-      ],
-      "title": "Total Containers",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 8,
-        "x": 8,
-        "y": 23
-      },
-      "id": 10,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": ""
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "10.0.0",
-      "targets": [
-        {
-          "expr": "sum(rate(container_cpu_usage_seconds_total{job=\"remote_docker\",container!=\"\"}[5m]))",
-          "refId": "A"
-        }
-      ],
-      "title": "Total CPU Cores Used",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "bytes"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 8,
-        "x": 16,
-        "y": 23
-      },
-      "id": 11,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": ""
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "10.0.0",
-      "targets": [
-        {
-          "expr": "sum(container_memory_usage_bytes{job=\"remote_docker\",container!=\"\"})",
-          "refId": "A"
-        }
-      ],
-      "title": "Total Memory Used",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "align": "left",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "inspect": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "CPU %"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "percent"
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "gauge",
-                  "mode": "gradient"
-                }
-              },
-              {
-                "id": "max",
-                "value": 100
-              },
-              {
-                "id": "decimals",
-                "value": 1
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Memory"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "bytes"
-              },
-              {
-                "id": "decimals",
-                "value": 0
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 10,
-        "w": 24,
-        "x": 0,
-        "y": 27
-      },
-      "id": 12,
-      "options": {
-        "showHeader": true,
-        "cellHeight": "sm",
-        "footer": {
-          "show": false,
-          "reducer": [
-            "sum"
-          ],
-          "countRows": false,
-          "fields": ""
-        },
-        "frameIndex": 0,
-        "sortBy": [
-          {
-            "displayName": "CPU %",
-            "desc": true
-          }
-        ]
-      },
-      "pluginVersion": "10.0.0",
-      "targets": [
-        {
-          "expr": "rate(container_cpu_usage_seconds_total{job=\"remote_docker\",container!=\"\"}[5m]) * 100",
-          "format": "table",
-          "instant": true,
-          "refId": "CPU"
-        },
-        {
-          "expr": "container_memory_usage_bytes{job=\"remote_docker\",container!=\"\"}",
-          "format": "table",
-          "instant": true,
-          "refId": "Memory"
-        }
-      ],
-      "title": "Docker Containers Details",
-      "transformations": [
-        {
-          "id": "merge",
-          "options": {}
-        },
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Time": true,
-              "job": true,
-              "__name__": true,
-              "id": true,
-              "image": false,
-              "name": false
-            },
-            "indexByName": {
-              "instance": 0,
-              "name": 1,
-              "image": 2,
-              "Value #CPU": 3,
-              "Value #Memory": 4
-            },
-            "renameByName": {
-              "instance": "Host",
-              "name": "Container",
-              "image": "Image",
-              "Value #CPU": "CPU %",
-              "Value #Memory": "Memory"
-            }
-          }
-        }
-      ],
-      "type": "table"
-    },
-    {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 37
-      },
-      "id": 13,
-      "panels": [],
-      "title": "MySQL Databases",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "green",
-                "value": 1
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 8,
-        "x": 0,
-        "y": 38
-      },
-      "id": 14,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": ""
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "10.0.0",
-      "targets": [
-        {
-          "expr": "count(mysql_up{job=\"remote_mysql\"} == 1)",
-          "refId": "A"
-        }
-      ],
-      "title": "MySQL Instances Up",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 8,
-        "x": 8,
-        "y": 38
-      },
-      "id": 15,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": ""
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "10.0.0",
-      "targets": [
-        {
-          "expr": "sum(rate(mysql_global_status_queries{job=\"remote_mysql\"}[5m]))",
-          "refId": "A"
-        }
-      ],
-      "title": "Total Queries/sec",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 8,
-        "x": 16,
-        "y": 38
-      },
-      "id": 16,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "area",
-        "justifyMode": "auto",
