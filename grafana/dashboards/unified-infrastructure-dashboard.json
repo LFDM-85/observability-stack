@@ -1065,13 +1065,13 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "rate(container_cpu_usage_seconds_total{job=\"remote_docker\",container!=\"\"}[5m]) * 100",
+          "expr": "sum by (instance, name) (rate(container_cpu_usage_seconds_total{job=\"remote_docker\",container!=\"\"}[5m])) * 100",
           "format": "table",
           "instant": true,
           "refId": "CPU"
         },
         {
-          "expr": "container_memory_usage_bytes{job=\"remote_docker\",container!=\"\"}",
+          "expr": "sum by (instance, name) (container_memory_usage_bytes{job=\"remote_docker\",container!=\"\"})",
           "format": "table",
           "instant": true,
           "refId": "Memory"
@@ -1097,14 +1097,12 @@
             "indexByName": {
               "instance": 0,
               "name": 1,
-              "image": 2,
-              "Value #CPU": 3,
-              "Value #Memory": 4
+              "Value #CPU": 2,
+              "Value #Memory": 3
             },
             "renameByName": {
               "Value #CPU": "CPU %",
               "Value #Memory": "Memory",
-              "image": "Image",
               "instance": "Host",
               "name": "Container"
             }
@@ -1255,12 +1253,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
-                "value": null
-              },
-              {
                 "color": "green",
-                "value": 1
+                "value": null
               }
             ]
           },
@@ -1487,6 +1481,6 @@
   "timezone": "",
   "title": "Infrastructure Overview - Unified Dashboard",
   "uid": "infrastructure-overview",
-  "version": 6,
+  "version": 8,
   "weekStart": ""
 }
