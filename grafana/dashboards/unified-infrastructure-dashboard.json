@@ -86,12 +86,13 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Número de hosts offline. Verifica a tabela abaixo para os nomes.",
+      "description": "Total de máquinas offline.",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "thresholds"
           },
+          "displayName": "Offline",
           "mappings": [
             {
               "options": {
@@ -139,7 +140,7 @@
           "fields": "",
           "values": false
         },
-        "textMode": "value_and_name"
+        "textMode": "value"
       },
       "pluginVersion": "10.0.0",
       "targets": [
@@ -461,7 +462,7 @@
               }
             ]
           },
-           {
+          {
             "matcher": {
               "id": "byName",
               "options": "Load 1m"
@@ -472,8 +473,8 @@
                 "value": "short"
               },
               {
-                 "id": "decimals",
-                 "value": 2
+                "id": "decimals",
+                "value": 2
               },
               {
                 "id": "custom.cellOptions",
@@ -574,7 +575,13 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "up{job=\"remote_hosts\"}",
+          "expr": "count by (instance, nodename) (node_uname_info{job=\"remote_hosts\"})",
+          "format": "table",
+          "instant": true,
+          "refId": "Names"
+        },
+        {
+          "expr": "max by (instance) (up{job=\"remote_hosts\"})",
           "format": "table",
           "instant": true,
           "refId": "Status"
@@ -586,38 +593,38 @@
           "refId": "CPU"
         },
         {
-          "expr": "100 - ((node_memory_MemAvailable_bytes{job=\"remote_hosts\"} / node_memory_MemTotal_bytes{job=\"remote_hosts\"}) * 100)",
+          "expr": "100 - (max by (instance) (node_memory_MemAvailable_bytes{job=\"remote_hosts\"}) / max by (instance) (node_memory_MemTotal_bytes{job=\"remote_hosts\"}) * 100)",
           "format": "table",
           "instant": true,
           "refId": "Memory"
         },
         {
-          "expr": "node_load1{job=\"remote_hosts\"}",
+          "expr": "max by (instance) (node_load1{job=\"remote_hosts\"})",
           "format": "table",
           "instant": true,
           "refId": "Load"
         },
         {
-           "expr": "(1 - (node_memory_SwapFree_bytes{job=\"remote_hosts\"} / node_memory_SwapTotal_bytes{job=\"remote_hosts\"})) * 100",
-           "format": "table",
-           "instant": true,
-           "refId": "Swap"
+          "expr": "(1 - (max by (instance) (node_memory_SwapFree_bytes{job=\"remote_hosts\"}) / max by (instance) (node_memory_SwapTotal_bytes{job=\"remote_hosts\"}))) * 100",
+          "format": "table",
+          "instant": true,
+          "refId": "Swap"
         },
         {
-          "expr": "100 - ((node_filesystem_avail_bytes{job=\"remote_hosts\",mountpoint=\"/\",fstype!=\"rootfs\"} / node_filesystem_size_bytes{job=\"remote_hosts\",mountpoint=\"/\",fstype!=\"rootfs\"}) * 100)",
+          "expr": "100 - (max by (instance) (node_filesystem_avail_bytes{job=\"remote_hosts\",mountpoint=\"/\",fstype!=\"rootfs\"}) / max by (instance) (node_filesystem_size_bytes{job=\"remote_hosts\",mountpoint=\"/\",fstype!=\"rootfs\"}) * 100)",
           "format": "table",
           "instant": true,
           "refId": "Disk"
-        },
-        {
-          "expr": "node_uname_info{job=\"remote_hosts\"}",
-          "format": "table",
-          "instant": true,
-          "refId": "Names"
         }
       ],
       "title": "Hosts Overview & Health",
       "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {
+            "mode": "columns"
+          }
+        },
         {
           "id": "merge",
           "options": {}
@@ -630,39 +637,28 @@
               "__name__": true,
               "env": true,
               "job": true,
-              "machine": true,
-              "release": true,
-              "sysname": true,
-              "version": true,
-              "domainname": true
+              "Value #Names": true
             },
             "indexByName": {
               "nodename": 0,
-              "Value #Status": 1,
-              "Value #Load": 2,
-              "Value #CPU": 3,
-              "Value #Memory": 4,
-              "Value #Swap": 5,
-              "Value #Disk": 6
+              "instance": 1,
+              "Value #Status": 2,
+              "Value #Load": 3,
+              "Value #CPU": 4,
+              "Value #Memory": 5,
+              "Value #Swap": 6,
+              "Value #Disk": 7
             },
             "renameByName": {
-              "nodename": "Hostname",
-              "instance": "IP Address",
-              "Value #Status": "Status",
               "Value #CPU": "CPU %",
-              "Value #Memory": "Memory %",
               "Value #Disk": "Disk %",
               "Value #Load": "Load 1m",
-              "Value #Swap": "Swap %"
+              "Value #Memory": "Memory %",
+              "Value #Status": "Status",
+              "Value #Swap": "Swap %",
+              "instance": "IP Address",
+              "nodename": "Hostname"
             }
-          }
-        },
-        {
-          "id": "filterFieldsByName",
-          "options": {
-             "include": {
-                "names": ["Hostname", "Status", "Load 1m", "CPU %", "Memory %", "Swap %", "Disk %"]
-             }
           }
         }
       ],
@@ -1263,8 +1259,12 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "red",
                 "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
               }
             ]
           },
@@ -1546,6 +1546,6 @@
   "timezone": "",
   "title": "Infrastructure Overview - Unified Dashboard",
   "uid": "infrastructure-overview",
-  "version": 2,
+  "version": 4,
   "weekStart": ""
 }
