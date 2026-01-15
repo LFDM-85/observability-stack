@@ -1,6 +1,19 @@
 {
   "annotations": {
-    "list": []
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "datasource",
+          "uid": "grafana"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
   },
   "editable": true,
   "fiscalYearStartMonth": 0,
@@ -9,6 +22,196 @@
   "links": [],
   "liveNow": false,
   "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 19,
+      "panels": [],
+      "title": "Summary",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 1
+      },
+      "id": 1,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "expr": "count(container_last_seen{job=~\"$job\", instance=~\"$instance\", name=~\"$container\", name!=\"\"})",
+          "refId": "A"
+        }
+      ],
+      "title": "Running Containers",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 1
+      },
+      "id": 2,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "expr": "sum(rate(container_cpu_usage_seconds_total{job=~\"$job\", instance=~\"$instance\", name=~\"$container\", name!=\"\"}[5m]))",
+          "refId": "A"
+        }
+      ],
+      "title": "Total CPU Cores",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 1
+      },
+      "id": 3,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "expr": "sum(container_memory_usage_bytes{job=~\"$job\", instance=~\"$instance\", name=~\"$container\", name!=\"\"})",
+          "refId": "A"
+        }
+      ],
+      "title": "Total Memory",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
+      "id": 20,
+      "panels": [],
+      "title": "Resource Trends",
+      "type": "row"
+    },
     {
       "datasource": {
         "type": "prometheus",
@@ -26,12 +229,12 @@
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
-            "fillOpacity": 20,
+            "fillOpacity": 10,
             "gradientMode": "none",
             "hideFrom": {
+              "legend": false,
               "tooltip": false,
-              "viz": false,
-              "legend": false
+              "viz": false
             },
             "lineInterpolation": "linear",
             "lineWidth": 1,
@@ -59,21 +262,21 @@
               }
             ]
           },
-          "unit": "percentunit"
+          "unit": "short"
         },
         "overrides": []
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 8,
         "x": 0,
-        "y": 0
+        "y": 6
       },
-      "id": 1,
+      "id": 4,
       "options": {
         "legend": {
           "calcs": [
-            "last",
+            "mean",
             "max"
           ],
           "displayMode": "table",
@@ -85,14 +288,15 @@
           "sort": "desc"
         }
       },
+      "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "rate(container_cpu_usage_seconds_total{job=\"remote_docker\",container!=\"\",instance=~\"$host\"}[5m])",
-          "legendFormat": "{{instance}} - {{name}}",
+          "expr": "topk(10, rate(container_cpu_usage_seconds_total{job=~\"$job\", instance=~\"$instance\", name=~\"$container\", name!=\"\"}[5m]))",
+          "legendFormat": "{{name}}",
           "refId": "A"
         }
       ],
-      "title": "Container CPU Usage",
+      "title": "Top 10 Containers by CPU",
       "type": "timeseries"
     },
     {
@@ -112,12 +316,12 @@
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
-            "fillOpacity": 20,
+            "fillOpacity": 10,
             "gradientMode": "none",
             "hideFrom": {
+              "legend": false,
               "tooltip": false,
-              "viz": false,
-              "legend": false
+              "viz": false
             },
             "lineInterpolation": "linear",
             "lineWidth": 1,
@@ -151,15 +355,15 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 0
+        "w": 8,
+        "x": 8,
+        "y": 6
       },
-      "id": 2,
+      "id": 5,
       "options": {
         "legend": {
           "calcs": [
-            "last",
+            "mean",
             "max"
           ],
           "displayMode": "table",
@@ -171,14 +375,15 @@
           "sort": "desc"
         }
       },
+      "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "container_memory_usage_bytes{job=\"remote_docker\",container!=\"\",instance=~\"$host\"}",
-          "legendFormat": "{{instance}} - {{name}}",
+          "expr": "topk(10, container_memory_usage_bytes{job=~\"$job\", instance=~\"$instance\", name=~\"$container\", name!=\"\"})",
+          "legendFormat": "{{name}}",
           "refId": "A"
         }
       ],
-      "title": "Container Memory Usage",
+      "title": "Top 10 Containers by Memory",
       "type": "timeseries"
     },
     {
@@ -201,9 +406,9 @@
             "fillOpacity": 10,
             "gradientMode": "none",
             "hideFrom": {
+              "legend": false,
               "tooltip": false,
-              "viz": false,
-              "legend": false
+              "viz": false
             },
             "lineInterpolation": "linear",
             "lineWidth": 1,
@@ -237,40 +442,54 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 8,
+        "x": 16,
+        "y": 6
+      },
+      "id": 6,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "expr": "topk(5, rate(container_network_receive_bytes_total{job=~\"$job\", instance=~\"$instance\", name=~\"$container\", name!=\"\"}[5m]))",
+          "legendFormat": "Rx {{name}}",
+          "refId": "A"
+        },
+        {
+          "expr": "topk(5, rate(container_network_transmit_bytes_total{job=~\"$job\", instance=~\"$instance\", name=~\"$container\", name!=\"\"}[5m]))",
+          "legendFormat": "Tx {{name}}",
+          "refId": "B"
+        }
+      ],
+      "title": "Top 5 Containers Network I/O",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
         "x": 0,
-        "y": 8
+        "y": 14
       },
-      "id": 3,
-      "options": {
-        "legend": {
-          "calcs": [
-            "last",
-            "max"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "expr": "rate(container_network_receive_bytes_total{job=\"remote_docker\",container!=\"\",instance=~\"$host\"}[5m])",
-          "legendFormat": "{{instance}} - {{name}} RX",
-          "refId": "A"
-        },
-        {
-          "expr": "rate(container_network_transmit_bytes_total{job=\"remote_docker\",container!=\"\",instance=~\"$host\"}[5m])",
-          "legendFormat": "{{instance}} - {{name}} TX",
-          "refId": "B"
-        }
-      ],
-      "title": "Container Network I/O",
-      "type": "timeseries"
+      "id": 21,
+      "panels": [],
+      "title": "Details",
+      "type": "row"
     },
     {
       "datasource": {
@@ -280,37 +499,14 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "mode": "thresholds"
           },
           "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "tooltip": false,
-              "viz": false,
-              "legend": false
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
             },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
+            "inspect": false
           },
           "mappings": [],
           "thresholds": {
@@ -321,47 +517,142 @@
                 "value": null
               }
             ]
-          },
-          "unit": "Bps"
+          }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CPU"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent0.0"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "gradient",
+                  "type": "gauge"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Memory"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "basic",
+                  "type": "auto"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Image"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 300
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 8
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 15
       },
-      "id": 4,
+      "id": 7,
       "options": {
-        "legend": {
-          "calcs": [
-            "last",
-            "max"
+        "cellHeight": "sm",
+        "countRows": false,
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
           ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
+          "show": false
         },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
+        "frameIndex": 0,
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "CPU"
+          }
+        ]
       },
+      "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "rate(container_fs_reads_bytes_total{job=\"remote_docker\",container!=\"\",instance=~\"$host\"}[5m])",
-          "legendFormat": "{{instance}} - {{name}} Read",
-          "refId": "A"
+          "expr": "sum by (name, image) (container_last_seen{job=~\"$job\", instance=~\"$instance\", name=~\"$container\", name!=\"\"})",
+          "format": "table",
+          "instant": true,
+          "refId": "Info"
         },
         {
-          "expr": "rate(container_fs_writes_bytes_total{job=\"remote_docker\",container!=\"\",instance=~\"$host\"}[5m])",
-          "legendFormat": "{{instance}} - {{name}} Write",
-          "refId": "B"
+          "expr": "sum by (name) (rate(container_cpu_usage_seconds_total{job=~\"$job\", instance=~\"$instance\", name=~\"$container\", name!=\"\"}[5m])) * 100",
+          "format": "table",
+          "instant": true,
+          "refId": "CPU"
+        },
+        {
+          "expr": "sum by (name) (container_memory_usage_bytes{job=~\"$job\", instance=~\"$instance\", name=~\"$container\", name!=\"\"})",
+          "format": "table",
+          "instant": true,
+          "refId": "Memory"
         }
       ],
-      "title": "Container Disk I/O",
-      "type": "timeseries"
+      "title": "Container Details",
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "image": false,
+              "job": true,
+              "name": false,
+              "Value #Info": true
+            },
+            "indexByName": {
+              "name": 0,
+              "image": 1,
+              "Value #CPU": 2,
+              "Value #Memory": 3
+            },
+            "renameByName": {
+              "Value #CPU": "CPU",
+              "Value #Info": "Running",
+              "Value #Memory": "Memory",
+              "image": "Image",
+              "name": "Container Name"
+            }
+          }
+        }
+      ],
+      "type": "table"
     }
   ],
   "refresh": "30s",
@@ -369,7 +660,8 @@
   "style": "dark",
   "tags": [
     "docker",
-    "containers"
+    "containers",
+    "monitor"
   ],
   "templating": {
     "list": [
@@ -377,21 +669,66 @@
         "current": {
           "selected": true,
           "text": "All",
-          "value": "$__all"
+          "value": [
+            "$__all"
+          ]
         },
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus"
-        },
-        "definition": "label_values(container_last_seen{job=\"remote_docker\"},instance)",
+        "definition": "label_values(up, job)",
         "hide": 0,
         "includeAll": true,
-        "label": "Host",
-        "multi": false,
-        "name": "host",
+        "multi": true,
+        "name": "job",
         "options": [],
         "query": {
-          "query": "label_values(container_last_seen{job=\"remote_docker\"},instance)",
+          "query": "label_values(up, job)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "monitoring_stack|remote_docker",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": [
+            "$__all"
+          ]
+        },
+        "definition": "label_values(up{job=~\"$job\"}, instance)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "instance",
+        "options": [],
+        "query": {
+          "query": "label_values(up{job=~\"$job\"}, instance)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": [
+            "$__all"
+          ]
+        },
+        "definition": "label_values(container_last_seen{job=~\"$job\", instance=~\"$instance\", name!=\"\"}, name)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "container",
+        "options": [],
+        "query": {
+          "query": "label_values(container_last_seen{job=~\"$job\", instance=~\"$instance\", name!=\"\"}, name)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 1,
@@ -408,8 +745,8 @@
   },
   "timepicker": {},
   "timezone": "",
-  "title": "Docker Containers Monitoring",
-  "uid": "docker-containers",
+  "title": "Docker Containers Overview",
+  "uid": "docker-containers-overview",
   "version": 1,
   "weekStart": ""
 }
