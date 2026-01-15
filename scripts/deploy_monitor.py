@@ -4,7 +4,7 @@ import subprocess
 import sys
 import time
 import argparse
-from fix_dashboards import fix_dashboards
+# from fix_dashboards import fix_dashboards
 
 # Paths
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -598,7 +598,8 @@ def main():
         
         # Validate OS and Architecture
         os_info = ssh_command(ip, "cat /etc/os-release | grep PRETTY_NAME", check=False) or "Unknown Linux"
-        print(f"   💻 OS: {os_info.replace('PRETTY_NAME=', '').strip().strip('\"')}")
+        os_name = os_info.replace('PRETTY_NAME=', '').strip().strip('"')
+        print(f"   💻 OS: {os_name}")
         
         arch = ssh_command(ip, "uname -m", check=True).strip()
         go_arch = "amd64"
@@ -673,8 +674,8 @@ def main():
         print("📊 Prometheus should pick up changes automatically")
 
     # Always ensure dashboards are correctly configured
-    print("\n🔧 Checking Grafana dashboards...")
-    fix_dashboards()
+    # print("\n🔧 Checking Grafana dashboards...")
+    # fix_dashboards()
 
     # Display summary
     print("\n" + "="*50)
