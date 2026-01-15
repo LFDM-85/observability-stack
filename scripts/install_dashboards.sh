@@ -49,28 +49,35 @@ for dashboard in "${!DASHBOARDS[@]}"; do
         source_file="$BASE_DIR/$dashboard"
     elif [ -f "$SCRIPT_DIR/$dashboard" ]; then
         source_file="$SCRIPT_DIR/$dashboard"
-    else
-        echo -e "  ${RED}❌ Source file not found${NC}"
-        echo -e "  ${YELLOW}💡 Place $dashboard in $BASE_DIR or $SCRIPT_DIR${NC}"
-        ((failed++))
-        echo ""
-        continue
     fi
 
-    if [ -f "$target_file" ]; then
-        echo -e "  ${YELLOW}⚠️  Already exists. Overwrite? (y/n)${NC} "
-        read -r response
-        if [[ ! "$response" =~ ^([yY])$ ]]; then
-            echo -e "  ${YELLOW}⏭️  Skipped${NC}"
-            ((skipped++))
-            echo ""
-            continue
+    if [ -n "$source_file" ]; then
+        if [ -f "$target_file" ]; then
+            echo -e "  ${YELLOW}⚠️  Already exists. Overwrite? (y/n)${NC} "
+            read -r response
+            if [[ ! "$response" =~ ^([yY])$ ]]; then
+                echo -e "  ${YELLOW}⏭️  Skipped${NC}"
+                ((skipped++))
+                echo ""
+                continue
+            fi
+        fi
+        
+        cp "$source_file" "$target_file"
+        echo -e "  ${GREEN}✅ Installed${NC}"
+        ((installed++))
+    else
+        # Source missing
+        if [ -f "$target_file" ]; then
+            echo -e "  ${GREEN}✅ Found existing in destination${NC}"
+            # We count this as "installed" to ensure we trigger the restart/fix steps
+            ((installed++))
+        else
+            echo -e "  ${RED}❌ Source file not found${NC}"
+            echo -e "  ${YELLOW}💡 Place $dashboard in $BASE_DIR or $SCRIPT_DIR${NC}"
+            ((failed++))
         fi
     fi
-    
-    cp "$source_file" "$target_file"
-    echo -e "  ${GREEN}✅ Installed${NC}"
-    ((installed++))
     
     echo ""
 done
