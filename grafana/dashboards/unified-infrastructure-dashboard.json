@@ -152,65 +152,7 @@
       "title": "Hosts Offline",
       "type": "stat"
     },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "green",
-                "value": 1
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 8,
-        "x": 16,
-        "y": 0
-      },
-      "id": 4,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "10.0.0",
-      "targets": [
-        {
-          "expr": "count(up{job=\"remote_mysql\"} == 1)",
-          "refId": "A"
-        }
-      ],
-      "title": "MySQL Hosts Online",
-      "type": "stat"
-    },
+
     {
       "datasource": {
         "type": "prometheus",
@@ -785,17 +727,48 @@
     },
     {
       "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 22
-      },
-      "id": 8,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 22 },
+      "id": 19,
       "panels": [],
-      "title": "Docker Containers",
+      "title": "System Metrics",
       "type": "row"
     },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "bps", "color": { "mode": "palette-classic" }, "custom": { "fillOpacity": 10, "showPoints": "never" } } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 23 },
+      "id": 20,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["max", "current"] } },
+      "targets": [
+        { "expr": "sum by (instance) (irate(node_network_receive_bytes_total{job=\"remote_hosts\",device!=\"lo\"}[5m]))", "legendFormat": "Rx {{instance}}", "refId": "A" },
+        { "expr": "sum by (instance) (irate(node_network_transmit_bytes_total{job=\"remote_hosts\",device!=\"lo\"}[5m]))", "legendFormat": "Tx {{instance}}", "refId": "B" }
+      ],
+      "title": "Network Traffic (In/Out)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "Bps", "color": { "mode": "palette-classic" }, "custom": { "fillOpacity": 10, "showPoints": "never" } } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 23 },
+      "id": 21,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["max", "current"] } },
+      "targets": [
+        { "expr": "sum by (instance) (irate(node_disk_read_bytes_total{job=\"remote_hosts\"}[5m]))", "legendFormat": "Read {{instance}}", "refId": "A" },
+        { "expr": "sum by (instance) (irate(node_disk_written_bytes_total{job=\"remote_hosts\"}[5m]))", "legendFormat": "Write {{instance}}", "refId": "B" }
+      ],
+      "title": "Disk I/O Throughput",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s", "min": 0, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 300 } ] } } },
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 31 },
+      "id": 22,
+      "options": { "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "values": false }, "textMode": "auto" },
+      "targets": [ { "expr": "time() - node_boot_time_seconds{job=\"remote_hosts\"}", "legendFormat": "{{instance}}", "refId": "A" } ],
+      "title": "System Uptime",
+      "type": "stat"
+    }
     {
       "datasource": {
         "type": "prometheus",
