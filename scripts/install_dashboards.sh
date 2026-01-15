@@ -43,6 +43,20 @@ for dashboard in "${!DASHBOARDS[@]}"; do
     echo -e "${BLUE}➜ $dashboard${NC}"
     echo -e "  Description: $description"
     
+    # Check if source file exists
+    source_file=""
+    if [ -f "$BASE_DIR/$dashboard" ]; then
+        source_file="$BASE_DIR/$dashboard"
+    elif [ -f "$SCRIPT_DIR/$dashboard" ]; then
+        source_file="$SCRIPT_DIR/$dashboard"
+    else
+        echo -e "  ${RED}❌ Source file not found${NC}"
+        echo -e "  ${YELLOW}💡 Place $dashboard in $BASE_DIR or $SCRIPT_DIR${NC}"
+        ((failed++))
+        echo ""
+        continue
+    fi
+
     if [ -f "$target_file" ]; then
         echo -e "  ${YELLOW}⚠️  Already exists. Overwrite? (y/n)${NC} "
         read -r response
@@ -54,20 +68,9 @@ for dashboard in "${!DASHBOARDS[@]}"; do
         fi
     fi
     
-    # Check if source file exists in current directory
-    if [ -f "$BASE_DIR/$dashboard" ]; then
-        cp "$BASE_DIR/$dashboard" "$target_file"
-        echo -e "  ${GREEN}✅ Installed${NC}"
-        ((installed++))
-    elif [ -f "$SCRIPT_DIR/$dashboard" ]; then
-        cp "$SCRIPT_DIR/$dashboard" "$target_file"
-        echo -e "  ${GREEN}✅ Installed${NC}"
-        ((installed++))
-    else
-        echo -e "  ${RED}❌ Source file not found${NC}"
-        echo -e "  ${YELLOW}💡 Place $dashboard in $BASE_DIR or $SCRIPT_DIR${NC}"
-        ((failed++))
-    fi
+    cp "$source_file" "$target_file"
+    echo -e "  ${GREEN}✅ Installed${NC}"
+    ((installed++))
     
     echo ""
 done

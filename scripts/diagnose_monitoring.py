@@ -31,11 +31,11 @@ def load_hosts():
 def ssh_exec(ip, user, cmd):
     """Execute command via SSH"""
     if ip in ('127.0.0.1', 'localhost'):
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        result = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
     else:
         ssh_cmd = ['ssh', '-o', 'StrictHostKeyChecking=no', '-o', 'ConnectTimeout=5', 
                    f'{user}@{ip}', cmd]
-        result = subprocess.run(ssh_cmd, capture_output=True, text=True)
+        result = subprocess.run(ssh_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
     return result.returncode, result.stdout, result.stderr
 
 def diagnose_host(ip, user):
@@ -103,7 +103,7 @@ def diagnose_host(ip, user):
     # 6. Test connectivity from Prometheus server
     print("\n6️⃣  Testing connectivity from localhost...")
     result = subprocess.run(['curl', '-s', '-m', '5', f'http://{ip}:9100/metrics'], 
-                          capture_output=True, text=True)
+                          stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
     if result.returncode == 0 and 'node_' in result.stdout:
         print(f"   ✅ Can reach metrics endpoint")
         print(f"      Sample: {result.stdout.split()[0][:100]}...")
