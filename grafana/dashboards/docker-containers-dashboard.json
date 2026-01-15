@@ -291,8 +291,8 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "topk(10, rate(container_cpu_usage_seconds_total{job=~\"$job\", instance=~\"$instance\", name=~\"$container\", name!=\"\"}[5m]))",
-          "legendFormat": "{{name}}",
+          "expr": "rate(container_cpu_usage_seconds_total{job=~\"$job\", instance=~\"$instance\", name=~\"$container\", name!=\"\"}[5m])",
+          "legendFormat": "{{instance}} - {{name}}",
           "refId": "A"
         }
       ],
@@ -378,8 +378,8 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "topk(10, container_memory_usage_bytes{job=~\"$job\", instance=~\"$instance\", name=~\"$container\", name!=\"\"})",
-          "legendFormat": "{{name}}",
+          "expr": "container_memory_usage_bytes{job=~\"$job\", instance=~\"$instance\", name=~\"$container\", name!=\"\"}",
+          "legendFormat": "{{instance}} - {{name}}",
           "refId": "A"
         }
       ],
@@ -465,13 +465,13 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "topk(5, rate(container_network_receive_bytes_total{job=~\"$job\", instance=~\"$instance\", name=~\"$container\", name!=\"\"}[5m]))",
-          "legendFormat": "Rx {{name}}",
+          "expr": "rate(container_network_receive_bytes_total{job=~\"$job\", instance=~\"$instance\", name=~\"$container\", name!=\"\"}[5m])",
+          "legendFormat": "Rx {{instance}} - {{name}}",
           "refId": "A"
         },
         {
-          "expr": "topk(5, rate(container_network_transmit_bytes_total{job=~\"$job\", instance=~\"$instance\", name=~\"$container\", name!=\"\"}[5m]))",
-          "legendFormat": "Tx {{name}}",
+          "expr": "rate(container_network_transmit_bytes_total{job=~\"$job\", instance=~\"$instance\", name=~\"$container\", name!=\"\"}[5m])",
+          "legendFormat": "Tx {{instance}} - {{name}}",
           "refId": "B"
         }
       ],
@@ -601,19 +601,19 @@
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "expr": "sum by (name, image) (container_last_seen{job=~\"$job\", instance=~\"$instance\", name=~\"$container\", name!=\"\"})",
+          "expr": "sum by (instance, name, image) (container_last_seen{job=~\"$job\", instance=~\"$instance\", name=~\"$container\", name!=\"\"})",
           "format": "table",
           "instant": true,
           "refId": "Info"
         },
         {
-          "expr": "sum by (name) (rate(container_cpu_usage_seconds_total{job=~\"$job\", instance=~\"$instance\", name=~\"$container\", name!=\"\"}[5m])) * 100",
+          "expr": "sum by (instance, name) (rate(container_cpu_usage_seconds_total{job=~\"$job\", instance=~\"$instance\", name=~\"$container\", name!=\"\"}[5m])) * 100",
           "format": "table",
           "instant": true,
           "refId": "CPU"
         },
         {
-          "expr": "sum by (name) (container_memory_usage_bytes{job=~\"$job\", instance=~\"$instance\", name=~\"$container\", name!=\"\"})",
+          "expr": "sum by (instance, name) (container_memory_usage_bytes{job=~\"$job\", instance=~\"$instance\", name=~\"$container\", name!=\"\"})",
           "format": "table",
           "instant": true,
           "refId": "Memory"
@@ -637,16 +637,18 @@
               "Value #Info": true
             },
             "indexByName": {
-              "name": 0,
-              "image": 1,
-              "Value #CPU": 2,
-              "Value #Memory": 3
+              "instance": 0,
+              "name": 1,
+              "image": 2,
+              "Value #CPU": 3,
+              "Value #Memory": 4
             },
             "renameByName": {
               "Value #CPU": "CPU",
               "Value #Info": "Running",
               "Value #Memory": "Memory",
               "image": "Image",
+              "instance": "Host",
               "name": "Container Name"
             }
           }
