@@ -7,5 +7,21 @@
       "env": "proxmox",
       "container": "immich"
     }
+  },
+  {
+    "targets": [
+      "10.10.1.183:9991"
+    ],
+    "labels": {
+      "env": "internal"
+    }
+  },
+  {
+    "targets": [
+      "10.10.1.148:9991"
+    ],
+    "labels": {
+      "env": "internal"
+    }
   }
 ]

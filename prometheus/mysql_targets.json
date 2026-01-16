@@ -4,5 +4,13 @@
     "labels": {
       "env": "internal"
     }
+  },
+  {
+    "targets": [
+      "10.10.1.183:9104"
+    ],
+    "labels": {
+      "env": "internal"
+    }
   }
 ]
