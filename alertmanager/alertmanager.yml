@@ -6,50 +6,46 @@ route:
   group_wait: 30s
   group_interval: 5m
   repeat_interval: 4h
-  receiver: 'webhook-default'
+  receiver: 'n8n-terry'  # Default: Todos os alertas vão para Terry
   routes:
-    # Critical alerts - faster repeat and dedicated handling
+    # Critical alerts - faster repeat
     - match:
         severity: critical
-      receiver: 'webhook-critical'
-      repeat_interval: 30m
-      continue: true
-
-    # n8n Terry Workflow - All alerts (parallel notification)
-    - receiver: 'n8n-terry'
-      continue: true
+      receiver: 'n8n-terry'
       repeat_interval: 30m
 
     # SLO alerts - special grouping
     - match_re:
         alertname: 'SLO.*'
-      receiver: 'webhook-default'
+      receiver: 'n8n-terry'
       group_by: ['alertname', 'slo_type']
       repeat_interval: 1h
 
     # Warning alerts - standard handling
     - match:
         severity: warning
-      receiver: 'webhook-default'
+      receiver: 'n8n-terry'
       repeat_interval: 4h
 
 receivers:
-  - name: 'webhook-default'
-    webhook_configs:
-      - url: 'http://webhook-adapter:8080/alerts'
-        send_resolved: true
-
-  - name: 'webhook-critical'
-    webhook_configs:
-      - url: 'http://webhook-adapter:8080/alerts'
-        send_resolved: true
-
+  # n8n Terry - Análise inteligente com AI antes de enviar para Discord
   - name: 'n8n-terry'
     webhook_configs:
       - url: 'http://n8n-adapter:8081/alerts'
         send_resolved: true
         http_config:
           follow_redirects: true
+
+  # DEPRECATED: Webhook direto para Discord (substituído pelo Terry)
+  # - name: 'webhook-default'
+  #   webhook_configs:
+  #     - url: 'http://webhook-adapter:8080/alerts'
+  #       send_resolved: true
+  #
+  # - name: 'webhook-critical'
+  #   webhook_configs:
+  #     - url: 'http://webhook-adapter:8080/alerts'
+  #       send_resolved: true
 
 inhibit_rules:
   # Critical alerts inhibit warning alerts for the same issue

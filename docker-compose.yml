@@ -121,22 +121,23 @@ services:
     networks:
       - monitoring
 
-  # Webhook Adapter - Para Teams e Discord
-  webhook-adapter:
-    image: python:3.11-slim
-    container_name: webhook-adapter
-    working_dir: /app
-    command: sh -c "pip install --no-cache-dir flask requests && python teams-webhook-adapter.py"
-    ports:
-      - "8080:8080"
-    volumes:
-      - ./webhook-adapter/teams-webhook-adapter.py:/app/teams-webhook-adapter.py:ro
-    environment:
-      - TEAMS_WEBHOOK_URL=${TEAMS_WEBHOOK_URL}
-      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
-    restart: unless-stopped
-    networks:
-      - monitoring
+  # DEPRECATED: Webhook Adapter direto para Discord
+  # Substituído pelo fluxo: Alertmanager → n8n-adapter → n8n Terry → Discord
+  # webhook-adapter:
+  #   image: python:3.11-slim
+  #   container_name: webhook-adapter
+  #   working_dir: /app
+  #   command: sh -c "pip install --no-cache-dir flask requests && python teams-webhook-adapter.py"
+  #   ports:
+  #     - "8080:8080"
+  #   volumes:
+  #     - ./webhook-adapter/teams-webhook-adapter.py:/app/teams-webhook-adapter.py:ro
+  #   environment:
+  #     - TEAMS_WEBHOOK_URL=${TEAMS_WEBHOOK_URL}
+  #     - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
+  #   restart: unless-stopped
+  #   networks:
+  #     - monitoring
 
   # n8n Adapter - Transforma alertas para formato n8n Terry workflow
   n8n-adapter:
