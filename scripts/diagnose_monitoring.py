@@ -105,15 +105,59 @@ def diagnose_host(ip, user):
     result = subprocess.run(['curl', '-s', '-m', '5', f'http://{ip}:9100/metrics'], 
                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
     if result.returncode == 0 and 'node_' in result.stdout:
-        print(f"   ✅ Can reach metrics endpoint")
+        print(f"   ✅ Can reach Node Exporter metrics")
         print(f"      Sample: {result.stdout.split()[0][:100]}...")
     else:
-        print(f"   ❌ Cannot reach metrics endpoint")
+        print(f"   ❌ Cannot reach Node Exporter metrics")
         print(f"      Error: {result.stderr}")
-        issues.append("Endpoint unreachable from Prometheus")
+        issues.append("Node Exporter unreachable")
+
+    # 7. Check cAdvisor (if Docker is present)
+    print("\n7️⃣  Checking cAdvisor (Docker monitoring)...")
+    # Check if docker is running
+    rc, out, err = ssh_exec(ip, user, "command -v docker && systemctl is-active docker")
+    if rc == 0 and out.strip() == "active":
+        print(f"   🐳 Docker is running. Checking cAdvisor...")
+        
+        # Check cAdvisor service
+        rc, out, err = ssh_exec(ip, user, "systemctl is-active cadvisor")
+        if rc != 0:
+            print(f"   ❌ cAdvisor service not running or missing")
+            issues.append("cAdvisor not running")
+        else:
+            print(f"   ✅ cAdvisor service is active")
+            
+            # Check port 9991
+            rc, out, err = ssh_exec(ip, user, "ss -tlnp | grep :9991 || netstat -tlnp | grep :9991")
+            if rc != 0 or not out.strip():
+                print(f"   ❌ Port 9991 (cAdvisor) is NOT listening")
+                issues.append("cAdvisor port not listening")
+            else:
+                print(f"   ✅ Port 9991 is listening")
+
+            # Check firewall for 9991
+            rc, out, err = ssh_exec(ip, user, "firewall-cmd --list-ports 2>/dev/null || iptables -L -n | grep 9991")
+            if "9991" not in out:
+                print(f"   ⚠️  Port 9991 may be blocked by firewall")
+                issues.append("cAdvisor firewall blocking")
+                fixes.append("firewall_cadvisor")
+            else:
+                print(f"   ✅ Firewall allows 9991")
+
+            # Check connectivity
+            print(f"   🔄 Testing cAdvisor connectivity...")
+            result = subprocess.run(['curl', '-s', '-m', '5', f'http://{ip}:9991/metrics'], 
+                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+            if result.returncode == 0 and 'container_' in result.stdout:
+                print(f"   ✅ Can reach cAdvisor metrics")
+            else:
+                print(f"   ❌ Cannot reach cAdvisor metrics")
+                issues.append("cAdvisor unreachable")
+    else:
+        print(f"   ℹ️  Docker not detected or not active. Skipping cAdvisor checks.")
     
-    # 7. Check journal for errors
-    print("\n7️⃣  Checking recent logs...")
+    # 8. Check journal for errors
+    print("\n8️⃣  Checking recent logs...")
     rc, out, err = ssh_exec(ip, user, "journalctl -u node_exporter -n 20 --no-pager 2>/dev/null")
     if rc == 0 and out:
         print(f"   📋 Recent logs:")
@@ -133,12 +177,14 @@ def diagnose_host(ip, user):
         if fixes:
             print(f"\n💡 SUGGESTED FIXES:")
             if "firewall" in fixes:
-                print(f"\n   🔥 Firewall Fix:")
+                print(f"\n   🔥 Firewall Fix (Node Exporter):")
                 print(f"      firewall-cmd --permanent --add-port=9100/tcp")
                 print(f"      firewall-cmd --reload")
-                print(f"      # OR for iptables:")
-                print(f"      iptables -A INPUT -p tcp --dport 9100 -j ACCEPT")
-                print(f"      service iptables save")
+                
+            if "firewall_cadvisor" in fixes:
+                print(f"\n   🔥 Firewall Fix (cAdvisor):")
+                print(f"      firewall-cmd --permanent --add-port=9991/tcp")
+                print(f"      firewall-cmd --reload")
             
             if "selinux" in fixes:
                 print(f"\n   🔒 SELinux Fix:")
@@ -190,10 +236,22 @@ def auto_fix_host(ip, user):
         print("   ✅ SELinux port policy updated")
         fixes_applied.append("selinux")
     else:
+    else:
         print("   ℹ️  SELinux not configured (may not be needed)")
+
+    # Fix 4: Firewall for cAdvisor (if needed)
+    print("\n4️⃣  Checking cAdvisor firewall (9991)...")
+    # Only if port 9991 is not open
+    rc, out, err = ssh_exec(ip, user, "firewall-cmd --list-ports 2>/dev/null")
+    if rc == 0 and "9991" not in out:
+        print("   Configuring firewall for cAdvisor...")
+        ssh_exec(ip, user, "firewall-cmd --permanent --add-port=9991/tcp && firewall-cmd --reload 2>/dev/null")
+        fixes_applied.append("firewall_cadvisor")
+    else:
+         print("   ℹ️  Port 9991 seems OK or firewalld not active")
     
-    # Fix 4: Verify service is actually running
-    print("\n4️⃣  Verifying service status...")
+    # Fix 5: Verify service is actually running
+    print("\n5️⃣  Verifying service status...")
     import time
     time.sleep(3)
     rc, out, err = ssh_exec(ip, user, "systemctl is-active node_exporter")

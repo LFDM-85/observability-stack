@@ -30,7 +30,12 @@ def format_uptime(last_scrape):
     if not last_scrape:
         return "Never"
     try:
-        scrape_time = datetime.fromisoformat(last_scrape.replace('Z', '+00:00'))
+        # Python 3.6 compatible timestamp parsing
+        # handles '2023-10-27T10:00:00.123456Z' or '2023-10-27T10:00:00Z'
+        if '.' in last_scrape:
+             scrape_time = datetime.strptime(last_scrape.replace('Z', ''), "%Y-%m-%dT%H:%M:%S.%f")
+        else:
+             scrape_time = datetime.strptime(last_scrape.replace('Z', ''), "%Y-%m-%dT%H:%M:%S")
         now = datetime.now(scrape_time.tzinfo)
         delta = now - scrape_time
         
