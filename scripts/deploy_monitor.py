@@ -486,20 +486,52 @@ WantedBy=multi-user.target' | {sudo}tee /etc/systemd/system/mysqld_exporter.serv
     print(f"[{ip}] MySQL Exporter installation successful.")
     return True
 
+def verify_cadvisor_running(ip):
+    """Verify that cAdvisor is running and accessible."""
+    print(f"🔍 Verifying cAdvisor on {ip}...")
+
+    # Check if service is active
+    status = ssh_command(ip, "systemctl is-active cadvisor", check=False)
+    if not status or status.strip() != "active":
+        print(f"   ✗ cAdvisor service is not active (status: {status.strip() if status else 'unknown'})")
+        return False
+    print(f"   ✓ cAdvisor service is active")
+
+    # Check if port is listening
+    port_check = ssh_command(ip, f"netstat -tuln | grep :{CADVISOR_PORT} || ss -tuln | grep :{CADVISOR_PORT}", check=False)
+    if not port_check:
+        print(f"   ✗ Port {CADVISOR_PORT} is not listening")
+        return False
+    print(f"   ✓ Port {CADVISOR_PORT} is listening")
+
+    # Check Docker socket permissions
+    docker_socket_check = ssh_command(ip, "ls -l /var/run/docker.sock", check=False)
+    if docker_socket_check:
+        print(f"   ✓ Docker socket accessible: {docker_socket_check.strip()}")
+
+    # Try to fetch metrics from cAdvisor
+    metrics_check = ssh_command(ip, f"curl -s http://localhost:{CADVISOR_PORT}/metrics | head -5", check=False)
+    if not metrics_check or "container_" not in metrics_check:
+        print(f"   ✗ cAdvisor metrics endpoint not responding correctly")
+        return False
+    print(f"   ✓ cAdvisor metrics endpoint responding")
+
+    return True
+
 def verify_target_health(ip, timeout=30):
     """Verify that Prometheus can scrape the target."""
     import requests
     import time
-    
+
     target_endpoint = f"{ip}:9100"
     if ip in ('127.0.0.1', 'localhost'):
         return True  # Skip localhost verification
-    
+
     print(f"🔍 Verifying target health for {target_endpoint}...")
-    
+
     prometheus_url = "http://localhost:9990/api/v1/targets"
     start_time = time.time()
-    
+
     while time.time() - start_time < timeout:
         try:
             response = requests.get(prometheus_url, timeout=5)
@@ -517,10 +549,54 @@ def verify_target_health(ip, timeout=30):
             print(f"[{ip}] Prometheus not reachable at {prometheus_url}. Retrying...")
         except Exception as e:
             print(f"[{ip}] Error verifying target health: {e}")
-        
+
         time.sleep(2)
-    
+
     print(f"⚠️  Could not verify target health within {timeout}s")
+    return False
+
+def verify_prometheus_scraping(ip, port, job_name, timeout=30):
+    """Verify that Prometheus can scrape a specific target endpoint."""
+    import requests
+    import time
+
+    if ip in ('127.0.0.1', 'localhost'):
+        return True
+
+    target_endpoint = f"{ip}:{port}"
+    print(f"🔍 Verifying Prometheus can scrape {target_endpoint} (job: {job_name})...")
+
+    prometheus_url = "http://localhost:9990/api/v1/targets"
+    start_time = time.time()
+
+    while time.time() - start_time < timeout:
+        try:
+            response = requests.get(prometheus_url, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                for target in data.get('data', {}).get('activeTargets', []):
+                    scrape_url = target.get('scrapeUrl', '')
+                    if target_endpoint in scrape_url:
+                        health = target.get('health')
+                        last_error = target.get('lastError', '')
+
+                        if health == 'up':
+                            print(f"   ✓ Prometheus scraping {target_endpoint} successfully")
+                            return True
+                        else:
+                            print(f"   ✗ Prometheus scrape status: {health}")
+                            if last_error:
+                                print(f"   Error: {last_error}")
+                            return False
+        except requests.exceptions.ConnectionError:
+            pass  # Prometheus not ready yet
+        except Exception as e:
+            print(f"   ⚠️  Error checking Prometheus: {e}")
+
+        time.sleep(2)
+
+    print(f"   ⚠️  Could not verify Prometheus scraping within {timeout}s")
+    print(f"   💡 Tip: Check if Prometheus container is running and {target_endpoint} is reachable from Prometheus")
     return False
 
 def main():
@@ -564,7 +640,8 @@ def main():
     targets = load_targets()
     changes_made = False
     results = []
-    
+    service_status = {}  # Track detailed service status per host
+
     for ip, specific_user in hosts:
         # Determine which user to use for this host
         current_username = specific_user if specific_user else USERNAME
@@ -626,35 +703,72 @@ def main():
         detected_services = detect_services(ip)
         print()  # Blank line for readability
         
+        # Initialize service status for this host
+        service_status[ip] = {
+            'node_exporter': {'installed': False, 'healthy': False},
+            'cadvisor': {'installed': False, 'healthy': False, 'prometheus_scrape': False},
+            'mysql_exporter': {'installed': False, 'healthy': False}
+        }
+
         # Always ensure Node Exporter is installed and running
         node_exporter_success = install_node_exporter(ip, go_arch)
-        
+        service_status[ip]['node_exporter']['installed'] = node_exporter_success
+
         if node_exporter_success:
             # Add to targets if not already present
             if not is_target_configured(ip, targets):
                 targets = add_target(ip, targets)
                 changes_made = True
-            
+
             # Install cAdvisor if Docker is detected
             if detected_services.get('docker'):
-                if install_cadvisor(ip):
+                cadvisor_installed = install_cadvisor(ip)
+                service_status[ip]['cadvisor']['installed'] = cadvisor_installed
+
+                if cadvisor_installed:
                     add_docker_target(ip)
                     print(f"✅ Docker monitoring configured for {ip}")
+
+                    # Verify cAdvisor is actually working
+                    cadvisor_healthy = verify_cadvisor_running(ip)
+                    service_status[ip]['cadvisor']['healthy'] = cadvisor_healthy
+
+                    if cadvisor_healthy:
+                        print(f"✅ cAdvisor verified and working on {ip}")
+
+                        # Check if Prometheus can scrape it
+                        if not args.skip_health_check:
+                            prometheus_scrape = verify_prometheus_scraping(ip, CADVISOR_PORT, 'remote_docker', timeout=15)
+                            service_status[ip]['cadvisor']['prometheus_scrape'] = prometheus_scrape
+                    else:
+                        print(f"⚠️  cAdvisor installed but not responding correctly on {ip}")
+                        print(f"   💡 Tip: Run 'python3 scripts/diagnose_monitoring.py {ip}' for detailed diagnostics")
                 else:
                     print(f"⚠️  Failed to install cAdvisor on {ip}")
-            
+
             # Install MySQL Exporter if MySQL is detected
             if detected_services.get('mysql'):
-                if install_mysqld_exporter(ip):
+                mysql_installed = install_mysqld_exporter(ip)
+                service_status[ip]['mysql_exporter']['installed'] = mysql_installed
+
+                if mysql_installed:
                     add_mysql_target(ip)
                     print(f"✅ MySQL monitoring configured for {ip}")
+
+                    # Verify MySQL Exporter health
+                    if not args.skip_health_check:
+                        mysql_scrape = verify_prometheus_scraping(ip, '9104', 'remote_mysql', timeout=15)
+                        service_status[ip]['mysql_exporter']['prometheus_scrape'] = mysql_scrape
                 else:
                     print(f"⚠️  Failed to install MySQL Exporter on {ip}")
-            
+
             print(f"✅ Host {ip} processed successfully")
-            
+
             if not args.skip_health_check:
-                if verify_target_health(ip):
+                node_health = verify_target_health(ip)
+                service_status[ip]['node_exporter']['healthy'] = node_health
+
+                if node_health:
                     results.append((ip, 'healthy'))
                 else:
                     results.append((ip, 'unhealthy'))
@@ -692,18 +806,102 @@ def main():
             'new_healthy': '✓',
             'new_unhealthy': '⚠️',
             'new_skipped_health': '⏭️',
-            'new_failed': '✗'
+            'new_failed': '✗',
+            'healthy': '✓',
+            'unhealthy': '⚠️',
+            'failed': '✗'
         }
         icon = status_icons.get(status, '?')
         status_text = status.replace('_', ' ').title()
         print(f"{icon} {ip:20s} - {status_text}")
-    
-    # Final recommendations
+
+    # Display detailed service status
+    if service_status:
+        print("\n" + "="*50)
+        print("🔍 Detailed Service Status:")
+        print("="*50)
+
+        for ip, services in service_status.items():
+            print(f"\n📍 {ip}:")
+
+            # Node Exporter
+            ne_status = services['node_exporter']
+            if ne_status['installed']:
+                health_icon = '✓' if ne_status['healthy'] else '⚠️'
+                print(f"   {health_icon} Node Exporter: Installed & {'Healthy' if ne_status['healthy'] else 'Needs attention'}")
+            else:
+                print(f"   ✗ Node Exporter: Installation failed")
+
+            # cAdvisor
+            ca_status = services['cadvisor']
+            if ca_status['installed']:
+                if ca_status['healthy']:
+                    scrape_icon = '✓' if ca_status['prometheus_scrape'] else '⚠️'
+                    scrape_text = 'Prometheus scraping OK' if ca_status['prometheus_scrape'] else 'Prometheus cannot scrape'
+                    print(f"   {scrape_icon} cAdvisor: Installed & Healthy - {scrape_text}")
+                else:
+                    print(f"   ⚠️  cAdvisor: Installed but not responding")
+            elif ne_status['installed']:
+                print(f"   ℹ️  cAdvisor: Not installed (Docker not detected)")
+
+            # MySQL Exporter
+            mysql_status = services['mysql_exporter']
+            if mysql_status['installed']:
+                scrape_icon = '✓' if mysql_status.get('prometheus_scrape') else '⚠️'
+                scrape_text = 'Prometheus scraping OK' if mysql_status.get('prometheus_scrape') else 'Check Prometheus scraping'
+                print(f"   {scrape_icon} MySQL Exporter: Installed - {scrape_text}")
+            elif ne_status['installed']:
+                print(f"   ℹ️  MySQL Exporter: Not installed (MySQL not detected)")
+
+    # Identify issues and provide recommendations
+    print("\n" + "="*50)
+    print("💡 Recommendations:")
+    print("="*50)
+
     failed_ssh = [ip for ip, status in results if status == 'ssh_failed']
     if failed_ssh:
-        print("\n💡 Recommendations:")
+        print("\n🔐 SSH Connection Issues:")
         print(f"   - Run: python3 scripts/setup_ssh_key.py --all")
         print(f"   - Or manually: python3 scripts/setup_ssh_key.py {failed_ssh[0]}")
+
+    # Check for cAdvisor issues
+    cadvisor_issues = []
+    for ip, services in service_status.items():
+        ca = services['cadvisor']
+        if ca['installed'] and not ca['healthy']:
+            cadvisor_issues.append(ip)
+        elif ca['installed'] and ca['healthy'] and not ca['prometheus_scrape']:
+            cadvisor_issues.append(ip)
+
+    if cadvisor_issues:
+        print("\n🐳 cAdvisor Issues Detected:")
+        for ip in cadvisor_issues:
+            print(f"   - {ip}: Run diagnostics with: python3 scripts/diagnose_monitoring.py {ip}")
+        print("\n   Common solutions:")
+        print("   1. Check firewall: sudo firewall-cmd --add-port=9991/tcp --permanent && sudo firewall-cmd --reload")
+        print("   2. Check cAdvisor logs: journalctl -u cadvisor -n 50")
+        print("   3. Restart cAdvisor: sudo systemctl restart cadvisor")
+        print(f"   4. Verify from Prometheus container can reach the host: docker exec -it prometheus wget -O- http://<IP>:{CADVISOR_PORT}/metrics")
+
+    # Check if Prometheus is accessible
+    prometheus_accessible = False
+    for ip, services in service_status.items():
+        if services['cadvisor'].get('prometheus_scrape') or services['mysql_exporter'].get('prometheus_scrape'):
+            prometheus_accessible = True
+            break
+
+    if not prometheus_accessible and not args.skip_health_check:
+        print("\n⚠️  Prometheus Health Check:")
+        print("   - Could not verify Prometheus scraping. Ensure Prometheus container is running:")
+        print("   - Run: docker-compose ps prometheus")
+        print("   - Check Prometheus targets: http://localhost:9990/targets")
+
+    print("\n✅ Deployment complete!")
+    print("\n📊 Next steps:")
+    print("   1. Check Prometheus targets: http://localhost:9990/targets")
+    print("   2. View Grafana dashboards: http://localhost:3000")
+    print("   3. Run health check: python3 scripts/check_health.py")
+    print("   4. Verify targets: python3 scripts/verify_prometheus_targets.py")
 
 if __name__ == "__main__":
     main()
