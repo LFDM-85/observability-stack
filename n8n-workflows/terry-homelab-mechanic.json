@@ -1,0 +1,271 @@
+{
+  "name": "Terry - Homelab Mechanic",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "homelab-alert",
+        "options": {}
+      },
+      "id": "276af5ae-f346-4526-a9ce-1d2c34d7dcb6",
+      "name": "Webhook (Alertmanager)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [260, 380],
+      "webhookId": "50612a65-10a8-4617-96d1-9f7eeed941c3"
+    },
+    {
+      "parameters": {},
+      "id": "acabf54f-7f41-4de7-8252-e093f020a32d",
+      "name": "Teste Manual",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [260, 560]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "alert_name",
+              "value": "HostHighDiskUsage"
+            },
+            {
+              "name": "host_ip",
+              "value": "192.168.90.104"
+            },
+            {
+              "name": "severity",
+              "value": "critical"
+            },
+            {
+              "name": "message",
+              "value": "Filesystem / is 92% full on node pve"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "dab1a8cc-faba-4e19-9404-d68c86c87f8e",
+      "name": "Mock Alerta",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [480, 560],
+      "notes": "Simula um alerta para teste. Altere o IP para um host real!"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "mergeByPosition",
+        "options": {}
+      },
+      "id": "26e9a0b1-b64d-4296-96ab-45b38d53c8aa",
+      "name": "Unificar Dados",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [700, 470],
+      "notes": "Ponto central - aceita webhooks ou testes manuais"
+    },
+    {
+      "parameters": {
+        "jsCode": "// SELETOR INTELIGENTE DE COMANDOS SSH\n// Analisa o alerta e escolhe os comandos de diagnóstico apropriados\n\nconst inputData = $input.first().json;\n\n// Normalizar dados (Webhook traz em 'body', Mock traz na raiz)\nconst alertName = inputData.body?.alert_name || inputData.alert_name || 'Unknown';\nconst hostIp = inputData.body?.host_ip || inputData.host_ip || 'unknown';\nconst severity = inputData.body?.severity || inputData.severity || 'warning';\nconst message = inputData.body?.message || inputData.message || 'No description';\nconst status = inputData.body?.status || inputData.status || 'firing';\n\nlet sshCommand = \"\";\nlet category = \"generic\";\n\n// LÓGICA DE DECISÃO BASEADA NO TIPO DE ALERTA\nif (alertName.toLowerCase().includes('disk') || alertName.toLowerCase().includes('filesystem')) {\n  category = \"disk\";\n  sshCommand = \"df -h; echo '---'; du -ahx /var /home 2>/dev/null | sort -rh | head -10\";\n\n} else if (alertName.toLowerCase().includes('cpu') || alertName.toLowerCase().includes('load')) {\n  category = \"cpu\";\n  sshCommand = \"top -b -n 1 | head -15\";\n\n} else if (alertName.toLowerCase().includes('memory') || alertName.toLowerCase().includes('ram')) {\n  category = \"memory\";\n  sshCommand = \"free -m; echo '---'; ps aux --sort=-%mem | head -10\";\n\n} else if (alertName.toLowerCase().includes('down') || alertName.toLowerCase().includes('service') || alertName.toLowerCase().includes('instance')) {\n  category = \"service\";\n  sshCommand = \"systemctl list-units --state=failed; echo '---'; journalctl -p 3 -xb --no-pager | tail -20\";\n\n} else if (alertName.toLowerCase().includes('docker') || alertName.toLowerCase().includes('container')) {\n  category = \"docker\";\n  sshCommand = \"docker ps -a; echo '---'; docker stats --no-stream\";\n\n} else if (alertName.toLowerCase().includes('proxmox') || alertName.toLowerCase().includes('vm') || alertName.toLowerCase().includes('lxc')) {\n  category = \"proxmox\";\n  sshCommand = \"qm list 2>/dev/null; pct list 2>/dev/null; echo '---'; pvesm status 2>/dev/null\";\n\n} else {\n  // Genérico\n  category = \"generic\";\n  sshCommand = \"uptime; echo '---'; dmesg | tail -10\";\n}\n\nreturn {\n  target_host: hostIp,\n  ssh_command: sshCommand,\n  alert_context: alertName,\n  severity: severity,\n  message: message,\n  status: status,\n  category: category\n};"
+      },
+      "id": "43045d3e-eee0-41fc-aa12-3aed716536b6",
+      "name": "Selecionar Comando",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [920, 470]
+    },
+    {
+      "parameters": {
+        "command": "={{ $json.ssh_command }}"
+      },
+      "id": "2bfa7299-c895-49af-94bd-46fd7d420a51",
+      "name": "SSH - Investigador",
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [1140, 470],
+      "credentials": {
+        "sshPassword": {
+          "id": "xEZQJfOxD72HEjDt",
+          "name": "SSH Password account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "x-goog-api-key",
+              "value": "={{ $credentials.apiKey }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"contents\": [{ \"parts\": [{ \"text\": \"Tu és o Terry, SysAdmin especialista em Linux, Docker, e Proxmox. Analisa este problema do meu homelab.\\n\\nALERTA: \" + $('Selecionar Comando').item.json.alert_context + \"\\nSEVERIDADE: \" + $('Selecionar Comando').item.json.severity + \"\\nHOST: \" + $('Selecionar Comando').item.json.target_host + \"\\nMENSAGEM: \" + $('Selecionar Comando').item.json.message + \"\\n\\nOUTPUT DO DIAGNÓSTICO SSH:\\n\" + ($('SSH - Investigador').item.json.stdout || \"Erro na conexão SSH: \" + JSON.stringify($('SSH - Investigador').item.json.error)) + \"\\n\\nTAREFA:\\n1. Analisa o output e identifica a causa raiz\\n2. Sugere uma solução passo-a-passo (comandos linux)\\n3. Sê breve e técnico. Responde em Português de Portugal.\" }] }], \"generationConfig\": { \"temperature\": 0.7, \"maxOutputTokens\": 2048 } } }}",
+        "options": {}
+      },
+      "id": "713d071f-d998-429e-a55b-1e32fdb3adf1",
+      "name": "Terry (Analista Gemini)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1360, 470],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "CONFIGURE_GEMINI_CREDENTIALS",
+          "name": "Google Gemini API"
+        }
+      },
+      "notes": "⚠️ Configure sua API Key do Gemini aqui (Free tier - gemini-1.5-flash)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// FORMATADOR PARA DISCORD (Gemini)\n// Extrai resposta do Gemini (estrutura: candidates[0].content.parts[0].text)\nconst aiResponse = $json.candidates?.[0]?.content?.parts?.[0]?.text || 'Erro ao obter resposta da IA';\nconst selectNode = $('Selecionar Comando').item.json;\n\n// Sanitização\nlet formattedDescription = aiResponse;\nformattedDescription = formattedDescription.replace(/^(Olá!|Terry aqui)[^\\n]*\\n\\n/i, '');\nformattedDescription = formattedDescription.replace(/\\n\\n(Espero que|Se tiver)[^\\n]*$/i, '');\nformattedDescription = formattedDescription.replace(/(\\d+\\.\\s*[^:]+:)/g, '\\n**$1**\\n');\n\nif (formattedDescription.length > 3900) {\n  formattedDescription = formattedDescription.substring(0, 3900) + '\\n\\n... (truncado)';\n}\n\n// Cor baseada na severidade\nlet embedColor = 16776960; // Amarelo\nif (selectNode.severity === 'critical') embedColor = 16711680; // Vermelho\nif (selectNode.severity === 'info') embedColor = 3447003; // Azul\n\n// Emoji baseado na categoria\nconst categoryEmojis = {\n  'disk': '💾',\n  'cpu': '⚡',\n  'memory': '🧠',\n  'service': '⚙️',\n  'docker': '🐳',\n  'proxmox': '🏢',\n  'generic': '🔍'\n};\nconst emoji = categoryEmojis[selectNode.category] || '🔍';\n\nconst payload = {\n  content: `${emoji} **Alerta Homelab: ${selectNode.alert_context}**`,\n  embeds: [{\n    title: \"Diagnóstico do Terry 🔧 (Gemini AI)\",\n    description: formattedDescription,\n    color: embedColor,\n    fields: [\n      { name: \"Máquina Alvo\", value: selectNode.target_host || 'N/D', inline: true },\n      { name: \"Severidade\", value: selectNode.severity.toUpperCase(), inline: true },\n      { name: \"Categoria\", value: selectNode.category, inline: true },\n      { name: \"Mensagem\", value: selectNode.message, inline: false }\n    ],\n    footer: { text: \"Automated by n8n & Gemini AI (1.5-flash) | Proxmox Monitoring\" },\n    timestamp: new Date().toISOString()\n  }]\n};\n\nreturn payload;"
+      },
+      "id": "1f3f2d37-7693-47d1-8815-afc017f3ec3c",
+      "name": "Formatar Discord",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1580, 470]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://discord.com/api/webhooks/1444123139859812503/C0RSj7sKJdmZqQeve3sSIAtvGmxX0REJLTJaIG7k8Q_prsY4ofJ9VpIwAkVb0Ac_vv9S",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1800, 470],
+      "id": "1cd0b8db-b58d-4acf-b4dd-a3dfd7b52769",
+      "name": "Enviar Discord"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook (Alertmanager)": {
+      "main": [
+        [
+          {
+            "node": "Unificar Dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Teste Manual": {
+      "main": [
+        [
+          {
+            "node": "Mock Alerta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mock Alerta": {
+      "main": [
+        [
+          {
+            "node": "Unificar Dados",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Unificar Dados": {
+      "main": [
+        [
+          {
+            "node": "Selecionar Comando",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Selecionar Comando": {
+      "main": [
+        [
+          {
+            "node": "SSH - Investigador",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SSH - Investigador": {
+      "main": [
+        [
+          {
+            "node": "Terry (Analista Claude)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Terry (Analista Claude)": {
+      "main": [
+        [
+          {
+            "node": "Formatar Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formatar Discord": {
+      "main": [
+        [
+          {
+            "node": "Enviar Discord",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "v2-claude",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e01d660861d56582d8348880870f2b6630ad7c6f8cf55f519da7ea59eef7f2d4"
+  },
+  "id": "BLmSamt7lu8IP7o0",
+  "tags": [
+    {
+      "name": "homelab"
+    },
+    {
+      "name": "monitoring"
+    },
+    {
+      "name": "claude"
+    }
+  ]
+}

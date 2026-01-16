@@ -15,6 +15,7 @@ A complete, Docker-based observability stack optimized for Proxmox VE environmen
 - **Alloy**: OpenTelemetry Collector for traces, logs, and metrics
 - **Alertmanager**: Alert handling and routing
 - **Webhook Adapter**: Custom adapter to bridge alerts to Microsoft Teams and Discord
+- **n8n Integration**: AI-powered alert analysis with automated SSH diagnostics (Terry Workflow)
 
 ### Proxmox-Specific Features
 - 🏢 **Proxmox Host Monitoring** - CPU, memory, disk, network, and cluster health
@@ -36,6 +37,7 @@ This is a complete, production-ready observability stack that automatically moni
 - 🔔 **Proactive alerting** - Predictive disk monitoring, resource limits, container health
 - 🔐 **SSH key automation** - Passwordless deployment after one-time setup
 - 🕵️ **Full Stack Tracing** - Visualize request flows from frontend to database with Tempo & OTLP
+- 🤖 **AI-Powered Diagnostics** - n8n Terry workflow automatically analyzes alerts, runs SSH commands, and provides intelligent solutions via Discord
 
 ## 🏗️ How It Works
 
@@ -240,13 +242,17 @@ After setup, you have:
 - **59 Alert rules** monitoring for issues (including Proxmox-specific)
 - **30 days** of metric retention
 
-## 📚 Proxmox Documentation
+## 📚 Documentation
 
-For detailed Proxmox setup and configuration:
+### Proxmox Setup
 
 - **[PROXMOX_SETUP_GUIDE.md](PROXMOX_SETUP_GUIDE.md)** - Complete setup guide with troubleshooting
 - **[PROXMOX_INVENTORY.md](PROXMOX_INVENTORY.md)** - Environment inventory and architecture
 - **[PROXMOX_MIGRATION_SUMMARY.md](PROXMOX_MIGRATION_SUMMARY.md)** - Changes and improvement suggestions
+
+### Integrations
+
+- **[N8N_INTEGRATION.md](N8N_INTEGRATION.md)** - AI-powered alert analysis with n8n Terry Workflow
 
 ## 📊 Automated Dashboards & Alerts
 
