@@ -1,0 +1,28 @@
+# n8n Workflows - Private Directory
+
+Este diretório contém workflows do n8n com credenciais sensíveis.
+
+**IMPORTANTE**: Este diretório NÃO é versionado no git por questões de segurança.
+
+## Conteúdo (Local apenas)
+
+- `terry-homelab-mechanic.json` - Workflow principal do Terry
+- `README.md` - Documentação completa
+- `QUICK_SETUP.md` - Guia rápido de configuração
+- `CHANGELOG.md` - Histórico de alterações
+
+## ⚠️ Segurança
+
+Este diretório está no `.gitignore` porque os workflows contêm:
+- Discord Webhook URLs
+- Gemini API Keys
+- Credenciais SSH
+- IDs de credenciais do n8n
+
+**NUNCA** faça commit destes ficheiros para repositórios públicos!
+
+## 📋 Como Usar
+
+Consulte a documentação local nos ficheiros:
+- `QUICK_SETUP.md` para setup inicial
+- `README.md` para documentação completa

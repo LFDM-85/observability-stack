@@ -1,3 +1,4 @@
 .env
 hosts.txt
-n8n-workflows/
+n8n-workflows/*
+!n8n-workflows/.gitkeep
