@@ -40,17 +40,65 @@ def test_ssh_connection(ip, username='root'):
     except:
         return False
 
+def detect_proxmox_guest(ip):
+    """Detect if the host is a Proxmox LXC or VM."""
+    if ip in ('127.0.0.1', 'localhost'):
+        return {'is_proxmox_guest': False, 'guest_type': None, 'vmid': None}
+
+    guest_info = {
+        'is_proxmox_guest': False,
+        'guest_type': None,  # 'lxc' or 'qemu'
+        'vmid': None
+    }
+
+    # Check if running inside LXC
+    lxc_check = ssh_command(ip, "test -f /proc/1/environ && grep -q 'container=lxc' /proc/1/environ && echo 'lxc' || echo 'not_lxc'", check=False)
+    if lxc_check and 'lxc' in lxc_check.strip():
+        guest_info['is_proxmox_guest'] = True
+        guest_info['guest_type'] = 'lxc'
+
+        # Try to get VMID from hostname or systemd
+        vmid_check = ssh_command(ip, "cat /etc/hostname 2>/dev/null || hostname", check=False)
+        if vmid_check:
+            guest_info['vmid'] = vmid_check.strip()
+
+        print(f"   📦 LXC Container detected (ID: {guest_info['vmid']})")
+        return guest_info
+
+    # Check if running inside QEMU/KVM (VM)
+    qemu_check = ssh_command(ip, "systemd-detect-virt 2>/dev/null", check=False)
+    if qemu_check and 'kvm' in qemu_check.lower():
+        guest_info['is_proxmox_guest'] = True
+        guest_info['guest_type'] = 'qemu'
+
+        hostname_check = ssh_command(ip, "hostname", check=False)
+        if hostname_check:
+            guest_info['vmid'] = hostname_check.strip()
+
+        print(f"   🖥️  QEMU/KVM VM detected (Name: {guest_info['vmid']})")
+        return guest_info
+
+    # Check if it's the Proxmox host itself
+    pve_check = ssh_command(ip, "test -f /etc/pve/.version && cat /etc/pve/.version 2>/dev/null", check=False)
+    if pve_check:
+        print(f"   🏢 Proxmox VE Host detected (Version: {pve_check.strip()})")
+        guest_info['is_proxmox_guest'] = False
+        guest_info['guest_type'] = 'proxmox_host'
+        return guest_info
+
+    return guest_info
+
 def detect_services(ip):
     """Detect what services are running on the target host."""
     if ip in ('127.0.0.1', 'localhost'):
         return {'docker': False, 'mysql': False, 'postgresql': False}
-    
+
     services = {
         'docker': False,
         'mysql': False,
         'postgresql': False
     }
-    
+
     print(f"🔍 Detecting services on {ip}...")
     
     # Check for Docker
@@ -699,15 +747,20 @@ def main():
                # Validate if we can bind (not blocked by firewall logic, but verifies if free)
                print(f"      - Port {port} ({name}) is FREE")
 
+        # Detect Proxmox guest type
+        proxmox_info = detect_proxmox_guest(ip)
+
         # Detect services on the host
         detected_services = detect_services(ip)
         print()  # Blank line for readability
-        
+
         # Initialize service status for this host
         service_status[ip] = {
             'node_exporter': {'installed': False, 'healthy': False},
             'cadvisor': {'installed': False, 'healthy': False, 'prometheus_scrape': False},
-            'mysql_exporter': {'installed': False, 'healthy': False}
+            'mysql_exporter': {'installed': False, 'healthy': False},
+            'proxmox_type': proxmox_info.get('guest_type'),
+            'proxmox_id': proxmox_info.get('vmid')
         }
 
         # Always ensure Node Exporter is installed and running
@@ -822,7 +875,18 @@ def main():
         print("="*50)
 
         for ip, services in service_status.items():
-            print(f"\n📍 {ip}:")
+            # Show Proxmox guest type if detected
+            prox_type = services.get('proxmox_type')
+            prox_id = services.get('proxmox_id')
+
+            if prox_type == 'lxc':
+                print(f"\n📍 {ip}: (📦 LXC: {prox_id})")
+            elif prox_type == 'qemu':
+                print(f"\n📍 {ip}: (🖥️  VM: {prox_id})")
+            elif prox_type == 'proxmox_host':
+                print(f"\n📍 {ip}: (🏢 Proxmox Host)")
+            else:
+                print(f"\n📍 {ip}:")
 
             # Node Exporter
             ne_status = services['node_exporter']

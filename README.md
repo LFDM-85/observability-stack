@@ -1,17 +1,28 @@
-# Observability Stack
+# Observability Stack for Proxmox
 
-A complete, Docker-based observability stack featuring Prometheus, Grafana, Loki, Alloy, Alertmanager, and a custom Webhook Adapter for Microsoft Teams and Discord integration.
+A complete, Docker-based observability stack optimized for Proxmox VE environments, featuring Prometheus, Grafana, Loki, Alloy, Alertmanager, and comprehensive monitoring for VMs, LXC containers, and the Proxmox host itself.
 
 ## 🚀 Features
 
-- **Prometheus**: Metrics collection, storage, and **proactive alerting**.
-- **Grafana**: Visualization with **automated dashboards** for System, Docker, and Prometheus.
-- **Node Exporter**: Built-in collector for local host metrics.
-- **Loki**: Log aggregation system.
-- **Tempo**: Distributed Tracing backend.
-- **Alloy**: OpenTelemetry Collector distribution with **cAdvisor integration** and system monitoring.
-- **Alertmanager**: Alert handling and routing.
-- **Webhook Adapter**: Custom adapter to bridge alerts to Microsoft Teams and Discord.
+### Core Monitoring
+- **Prometheus**: Metrics collection, storage, and **proactive alerting**
+- **Grafana**: Visualization with **automated dashboards** for Proxmox, System, and Docker
+- **Node Exporter**: System metrics from Proxmox host, VMs, and LXC containers
+- **Proxmox VE Exporter**: Specific metrics for VMs, LXCs, storage, and cluster health
+- **cAdvisor**: Docker container monitoring for LXCs running Docker
+- **Loki**: Log aggregation system
+- **Tempo**: Distributed Tracing backend
+- **Alloy**: OpenTelemetry Collector for traces, logs, and metrics
+- **Alertmanager**: Alert handling and routing
+- **Webhook Adapter**: Custom adapter to bridge alerts to Microsoft Teams and Discord
+
+### Proxmox-Specific Features
+- 🏢 **Proxmox Host Monitoring** - CPU, memory, disk, network, and cluster health
+- 📦 **LXC Container Detection** - Automatic detection and labeling of LXC containers
+- 🖥️ **VM Monitoring** - Full visibility into QEMU/KVM virtual machines
+- 🔍 **Automatic Service Discovery** - Detects Docker, MySQL, and other services
+- 📊 **Pre-configured Dashboards** - Proxmox Cluster Overview, Hosts Overview, Docker Containers
+- 🔔 **Proxmox-specific Alerts** - VM/LXC status, resource exhaustion, node health
 
 ## 🎯 Overview
 
@@ -93,7 +104,7 @@ This is a complete, production-ready observability stack that automatically moni
 - **Python 3** - For deployment scripts
 - **SSH Access** - Root access to servers you want to monitor (optional for remote monitoring)
 
-### Quick Start (5 Minutes)
+### Quick Start for Proxmox (10 Minutes)
 
 #### Step 1: Clone and Setup
 
@@ -107,10 +118,42 @@ The setup script will:
 
 - ✅ Verify all configuration files
 - ✅ Create `.env` file for webhooks
+- ✅ Create `hosts.txt` from template if it doesn't exist
 - ✅ Download and provision Grafana dashboards
 - ✅ Start all Docker containers
 
-#### Step 2: Access Grafana
+#### Step 2: Configure Hosts
+
+Create your `hosts.txt` file with your Proxmox environment:
+
+```bash
+# Copy the example file
+cp hosts.txt.example hosts.txt
+
+# Edit with your IPs
+nano hosts.txt
+```
+
+Example `hosts.txt` for Proxmox:
+
+```text
+# Proxmox Host
+192.168.90.104  # Proxmox VE Host
+
+# Virtual Machines
+192.168.90.105  # VM 100 - OPNsense
+10.10.1.156     # VM 101 - Zorin18
+
+# LXC Containers
+192.168.90.106  # LXC 200 - adguard
+10.10.1.152     # LXC 201 - immich
+10.10.1.172     # LXC 202 - n8n
+# ... add all your LXCs and VMs
+```
+
+> **Note**: The `hosts.txt` file is gitignored for security. Use `hosts.txt.example` as a template.
+
+#### Step 3: Access Grafana
 
 Open your browser to **http://localhost:3000**
 
@@ -141,53 +184,69 @@ To receive alerts on Discord or Microsoft Teams:
    docker compose restart webhook-adapter
    ```
 
-#### Step 4: Add Remote Servers (Optional)
+#### Step 4: Install Proxmox VE Exporter (Required)
 
-To monitor additional servers:
+Install the Proxmox VE Exporter on your Proxmox host to get VM/LXC metrics:
 
-1. **Add IPs to hosts.txt**:
+```bash
+./scripts/install_proxmox_exporter.sh 192.168.90.104
+```
 
-   ```bash
-   echo "192.168.1.100" >> hosts.txt
-   echo "10.0.0.50" >> hosts.txt
-   ```
+Follow the prompts to configure the API token. See [PROXMOX_SETUP_GUIDE.md](PROXMOX_SETUP_GUIDE.md) for detailed instructions.
 
-2. **Setup SSH keys** (one-time per server):
+#### Step 5: Deploy Monitoring to All Hosts
 
-   ```bash
-   cd scripts
-   python3 setup_ssh_key.py --all
-   ```
+Setup SSH keys and deploy Node Exporter to all hosts in `hosts.txt`:
 
-   - Enter the root password when prompted
-   - SSH keys will be automatically configured
+```bash
+# Setup SSH keys (one-time)
+cd scripts
+python3 setup_ssh_key.py --all
 
-3. **Deploy monitoring**:
+# Deploy monitoring (installs Node Exporter, cAdvisor where needed)
+python3 deploy_monitor.py
+```
 
-   ```bash
-   python3 deploy_monitor.py
-   ```
+The script will:
+- ✅ Detect if each host is a Proxmox host, VM, or LXC
+- ✅ Install Node Exporter on all hosts
+- ✅ Install cAdvisor on hosts with Docker
+- ✅ Verify Prometheus can scrape all targets
+- ✅ Show detailed status report
 
-   - Installs Node Exporter on each server
-   - Adds targets to Prometheus
-   - Verifies health
+#### Step 6: Verify Everything Works
 
-4. **Verify everything works**:
-   ```bash
-   python3 check_health.py
-   ```
+```bash
+python3 scripts/check_health.py
+```
 
-Done! Your remote servers now appear in Grafana dashboards.
+Done! Your Proxmox environment is now fully monitored with dashboards in Grafana.
 
-### Understanding Your Setup
+### Understanding Your Proxmox Setup
 
 After setup, you have:
 
 - **8 Docker containers** running the monitoring stack
-- **4 pre-configured dashboards** in Grafana
+- **3 Proxmox-optimized dashboards** in Grafana:
+  - **Proxmox Cluster Overview** - VM/LXC status, CPU, memory per guest
+  - **Proxmox Hosts Overview** - System metrics for all hosts (Proxmox, VMs, LXCs)
+  - **Docker Containers** - Container metrics for LXCs running Docker
+- **4 Prometheus jobs** collecting metrics:
+  - `monitoring_stack` - Local stack services
+  - `remote_hosts` - Node Exporter (all hosts)
+  - `remote_docker` - cAdvisor (Docker hosts)
+  - `proxmox` - Proxmox VE Exporter (cluster metrics)
 - **Automatic scraping** every 15 seconds
-- **Alert rules** monitoring for issues
+- **59 Alert rules** monitoring for issues (including Proxmox-specific)
 - **30 days** of metric retention
+
+## 📚 Proxmox Documentation
+
+For detailed Proxmox setup and configuration:
+
+- **[PROXMOX_SETUP_GUIDE.md](PROXMOX_SETUP_GUIDE.md)** - Complete setup guide with troubleshooting
+- **[PROXMOX_INVENTORY.md](PROXMOX_INVENTORY.md)** - Environment inventory and architecture
+- **[PROXMOX_MIGRATION_SUMMARY.md](PROXMOX_MIGRATION_SUMMARY.md)** - Changes and improvement suggestions
 
 ## 📊 Automated Dashboards & Alerts
 

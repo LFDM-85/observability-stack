@@ -1,0 +1,21 @@
+# Proxmox Monitoring Hosts Configuration
+# Copy this file to hosts.txt and update with your IPs
+# Format: IP_ADDRESS or USER@IP_ADDRESS (if user is not root)
+
+# Proxmox Host
+# 192.168.90.104  # Proxmox VE Host (pve)
+
+# Virtual Machines (QEMU)
+# 192.168.90.105  # VM 100 - OPNsense-Firewall
+# 10.10.1.156     # VM 101 - Zorin18
+
+# LXC Containers
+# 192.168.90.106  # LXC 200 - adguard (DNS)
+# 10.10.1.152     # LXC 201 - immich (Photos)
+# 10.10.1.172     # LXC 202 - n8n (Automation)
+# 10.10.1.116     # LXC 203 - zabbix (Monitoring)
+# 10.10.1.183     # LXC 204 - passbolt (Password Manager)
+# 10.10.1.148     # LXC 205 - monit (Monitoring)
+# 10.10.1.117     # LXC 206 - ollama (AI/LLM)
+
+# Add your hosts below (uncomment and modify the examples above)

@@ -62,7 +62,19 @@ scrape_configs:
         target_label: instance
         replacement: '${1}'
 
-
+  # Proxmox VE Exporter - Metrics for Proxmox cluster/VMs/LXCs/Storage
+  - job_name: 'proxmox'
+    static_configs:
+      - targets:
+          - '192.168.90.104:9221'
+        labels:
+          env: 'proxmox'
+          node: 'pve'
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: '([^:]+)(:[0-9]+)?'
+        replacement: '${1}'
+        target_label: instance
 
   # Traefik Reverse Proxy
   - job_name: 'integrations/traefik'

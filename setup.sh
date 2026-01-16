@@ -101,7 +101,20 @@ else
 fi
 # --- DASHBOARD LOGIC UPDATE END ---
 
-check_file "hosts.txt" || ((missing_count++))
+# Check or create hosts.txt
+if [ ! -f "hosts.txt" ]; then
+    if [ -f "hosts.txt.example" ]; then
+        echo -e "${YELLOW}⚠️  hosts.txt not found, creating from example...${NC}"
+        cp hosts.txt.example hosts.txt
+        echo -e "${YELLOW}⚠️  Please edit hosts.txt with your server IPs before deploying${NC}"
+    else
+        echo -e "${RED}✗${NC} hosts.txt ${RED}(MISSING)${NC}"
+        ((missing_count++))
+    fi
+else
+    echo -e "${GREEN}✓${NC} hosts.txt"
+fi
+
 check_file "prometheus/targets.json" || ((missing_count++))
 
 # Fix dashboards datasource variable
@@ -185,5 +198,37 @@ if [[ "$response" =~ ^([sS]|[yY])$ ]]; then
     
     echo ""
     echo -e "${GREEN}✨ Observability stack ready!${NC}"
-    echo -e "${BLUE}📍 Grafana: http://localhost:3000${NC}"
+    echo ""
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${GREEN}📊 Access Services:${NC}"
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}🎨 Grafana:     http://localhost:3000${NC} (admin/admin)"
+    echo -e "${BLUE}📈 Prometheus:  http://localhost:9990${NC}"
+    echo -e "${BLUE}🔔 Alertmanager: http://localhost:9093${NC}"
+    echo ""
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${GREEN}🚀 Next Steps for Proxmox Monitoring:${NC}"
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo -e "${YELLOW}1.${NC} Edit hosts.txt with your Proxmox IPs:"
+    echo -e "   ${BLUE}nano hosts.txt${NC}"
+    echo ""
+    echo -e "${YELLOW}2.${NC} Install Proxmox VE Exporter on Proxmox host:"
+    echo -e "   ${BLUE}./scripts/install_proxmox_exporter.sh <proxmox-host-ip>${NC}"
+    echo ""
+    echo -e "${YELLOW}3.${NC} Setup SSH keys for all hosts:"
+    echo -e "   ${BLUE}cd scripts && python3 setup_ssh_key.py --all${NC}"
+    echo ""
+    echo -e "${YELLOW}4.${NC} Deploy monitoring to all hosts:"
+    echo -e "   ${BLUE}python3 scripts/deploy_monitor.py${NC}"
+    echo ""
+    echo -e "${YELLOW}5.${NC} Verify system health:"
+    echo -e "   ${BLUE}python3 scripts/check_health.py${NC}"
+    echo ""
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}📚 Documentation:${NC}"
+    echo -e "   - PROXMOX_SETUP_GUIDE.md    (Complete setup guide)"
+    echo -e "   - PROXMOX_INVENTORY.md      (Environment inventory)"
+    echo -e "   - README.md                 (General documentation)"
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 fi
