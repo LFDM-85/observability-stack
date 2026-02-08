@@ -5,7 +5,10 @@
 set -e
 
 # Configuração
-REPO_URL="https://github.com/YOUR_USERNAME/observability-stack.git"
+# IMPORTANTE: Substituir YOUR_USERNAME pelo teu username do GitHub
+# E configurar autenticação (PAT ou SSH) - ver docs/GITHUB_AUTH.md
+REPO_URL="https://github.com/LFDM-85/observability-stack.git"
+# Ou usar SSH: REPO_URL="git@github.com:LFDM-85/observability-stack.git"
 DEPLOY_PATH="/root/observability-stack"
 BRANCH="main"
 
