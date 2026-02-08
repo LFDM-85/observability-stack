@@ -11,6 +11,7 @@ services:
       - ./prometheus/targets.json:/etc/prometheus/targets.json
       - ./prometheus/docker_targets.json:/etc/prometheus/docker_targets.json
       - ./prometheus/mysql_targets.json:/etc/prometheus/mysql_targets.json
+      - ./prometheus/network_devices.json:/etc/prometheus/network_devices.json
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
