@@ -2,3 +2,31 @@
 hosts.txt
 n8n-workflows/*
 !n8n-workflows/.gitkeep
+.agent/*
+
+# SSH keys and secrets
+*.pem
+*.key
+id_rsa*
+
+# Data directories
+*_data/
+prometheus_data/
+grafana_data/
+loki_data/
+alertmanager_data/
+tempo_data/
+
+# Temporary files
+*.tar.gz
+*.zip
+*.log
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# OS
+.DS_Store
+Thumbs.db

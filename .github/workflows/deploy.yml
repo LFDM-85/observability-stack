@@ -1,0 +1,184 @@
+name: Deploy to Monitoring Server
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch: # Permite execução manual
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: "production"
+        type: choice
+        options:
+          - production
+          - staging
+
+env:
+  DEPLOY_USER: root
+  DEPLOY_HOST: 10.10.1.159
+  DEPLOY_PATH: /root/observability-stack
+  SSH_KEY_NAME: DEPLOY_SSH_KEY
+
+jobs:
+  deploy:
+    name: Deploy Observability Stack
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ env.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Test SSH connection
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} \
+            'echo "SSH connection successful"'
+
+      - name: Create deployment package
+        run: |
+          # Excluir ficheiros desnecessários
+          tar --exclude='.git' \
+              --exclude='*_data' \
+              --exclude='*.tar.gz' \
+              --exclude='.github' \
+              --exclude='__pycache__' \
+              -czf observability-stack.tar.gz .
+          ls -lh observability-stack.tar.gz
+
+      - name: Upload package to server
+        run: |
+          scp -i ~/.ssh/deploy_key \
+            observability-stack.tar.gz \
+            ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }}:/tmp/
+
+      - name: Backup current deployment
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} << 'EOF'
+            if [ -d "${{ env.DEPLOY_PATH }}" ]; then
+              echo "Creating backup of current deployment..."
+              BACKUP_NAME="observability-stack-backup-$(date +%Y%m%d-%H%M%S)"
+              cp -r ${{ env.DEPLOY_PATH }} /root/$BACKUP_NAME
+              echo "Backup created: /root/$BACKUP_NAME"
+            fi
+          EOF
+
+      - name: Extract and deploy
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} << 'EOF'
+            set -e
+            
+            # Criar diretório se não existir
+            mkdir -p ${{ env.DEPLOY_PATH }}
+            
+            # Extrair novo código
+            cd ${{ env.DEPLOY_PATH }}
+            tar -xzf /tmp/observability-stack.tar.gz
+            
+            # Dar permissões de execução
+            chmod +x setup.sh diagnose.sh scripts/*.sh
+            
+            # Limpar ficheiro temporário
+            rm /tmp/observability-stack.tar.gz
+            
+            echo "Deployment extracted successfully"
+          EOF
+
+      - name: Verify environment files
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} << 'EOF'
+            cd ${{ env.DEPLOY_PATH }}
+            
+            # Verificar se .env existe
+            if [ ! -f .env ]; then
+              echo "⚠️  WARNING: .env file not found. Creating from example..."
+              cp .env.example .env
+              echo "❌ CRITICAL: Configure .env with webhooks before starting stack!"
+              exit 1
+            fi
+            
+            # Verificar se hosts.txt existe
+            if [ ! -f hosts.txt ]; then
+              echo "⚠️  WARNING: hosts.txt not found. Creating from example..."
+              cp hosts.txt.example hosts.txt
+              echo "❌ CRITICAL: Configure hosts.txt before deploying monitors!"
+              exit 1
+            fi
+            
+            echo "✅ Environment files verified"
+          EOF
+
+      - name: Restart Docker stack
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} << 'EOF'
+            cd ${{ env.DEPLOY_PATH }}
+            
+            # Verificar se Docker está instalado
+            if ! command -v docker &> /dev/null; then
+              echo "❌ Docker not installed on target server"
+              exit 1
+            fi
+            
+            # Parar stack atual
+            echo "Stopping current stack..."
+            docker compose down || true
+            
+            # Pull de novas imagens
+            echo "Pulling latest images..."
+            docker compose pull
+            
+            # Iniciar stack
+            echo "Starting stack..."
+            docker compose up -d
+            
+            # Aguardar containers iniciarem
+            sleep 10
+            
+            # Verificar status
+            docker compose ps
+          EOF
+
+      - name: Health check
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} << 'EOF'
+            cd ${{ env.DEPLOY_PATH }}
+            
+            # Verificar se Python está disponível
+            if command -v python3 &> /dev/null; then
+              echo "Running health check..."
+              python3 scripts/check_health.py || echo "⚠️  Health check failed"
+            else
+              echo "⚠️  Python3 not available, skipping health check"
+              echo "Verifying containers manually..."
+              docker compose ps
+            fi
+          EOF
+
+      - name: Cleanup SSH key
+        if: always()
+        run: |
+          rm -f ~/.ssh/deploy_key
+
+      - name: Deployment summary
+        if: success()
+        run: |
+          echo "✅ Deployment successful!"
+          echo ""
+          echo "Services available at:"
+          echo "  - Grafana: http://${{ env.DEPLOY_HOST }}:3000"
+          echo "  - Prometheus: http://${{ env.DEPLOY_HOST }}:9990"
+          echo "  - Alertmanager: http://${{ env.DEPLOY_HOST }}:9093"
+          echo ""
+          echo "Next steps:"
+          echo "  1. Verify all containers are running"
+          echo "  2. Check Prometheus targets: http://${{ env.DEPLOY_HOST }}:9990/targets"
+          echo "  3. Access Grafana dashboards"
