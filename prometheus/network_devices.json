@@ -1,0 +1,22 @@
+[
+  {
+    "targets": [
+      "10.10.1.1"
+    ],
+    "labels": {
+      "device_name": "OPNsense LAN",
+      "device_type": "router",
+      "job": "blackbox_ping"
+    }
+  },
+  {
+    "targets": [
+      "192.168.90.105"
+    ],
+    "labels": {
+      "device_name": "OPNsense WAN",
+      "device_type": "router",
+      "job": "blackbox_ping"
+    }
+  }
+]

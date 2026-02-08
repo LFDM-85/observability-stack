@@ -1,0 +1,23 @@
+# Network Devices Inventory
+# Format: IP,Name,Type
+# Example: 10.10.1.100,iPhone Luis,smartphone
+
+# Smartphones/Tablets
+# 10.10.1.100,iPhone,smartphone
+# 10.10.1.101,iPad,tablet
+
+# Computers
+# 10.10.1.110,Desktop Office,pc
+# 10.10.1.111,Laptop,laptop
+
+# Cameras
+# 10.10.1.120,Camera Entrance,camera
+# 10.10.1.121,Camera Garden,camera
+
+# Smart Home/IoT
+# 10.10.1.130,Smart TV,tv
+# 10.10.1.131,Smart Speaker,iot
+
+# Network Equipment
+# 10.10.1.1,OPNsense,router
+# 192.168.90.105,OPNsense WAN,router

@@ -1,5 +1,7 @@
 .env
 hosts.txt
+network_devices.txt
+network_devices_discovered.json
 n8n-workflows/*
 !n8n-workflows/.gitkeep
 .agent/*

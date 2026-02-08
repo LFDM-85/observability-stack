@@ -1,0 +1,61 @@
+subnets:
+  - 10.10.1.0/24
+  - 192.168.90.0/24
+
+scan_interval: 300  # seconds (5 minutes)
+
+# Device classification rules
+device_classification:
+  # Port-based detection
+  port_rules:
+    - ports: [554, 8000, 8080]
+      type: camera
+      confidence: high
+    - ports: [22, 80, 443]
+      type: server
+      confidence: medium
+    - ports: [3389]
+      type: pc
+      confidence: high
+    - ports: [445, 139]
+      type: pc
+      confidence: medium
+  
+  # Hostname pattern matching
+  hostname_rules:
+    - pattern: "(?i)(iphone|ipad)"
+      type: smartphone
+    - pattern: "(?i)android"
+      type: smartphone
+    - pattern: "(?i)desktop-"
+      type: pc
+    - pattern: "(?i)(macbook|imac)"
+      type: laptop
+    - pattern: "(?i)camera"
+      type: camera
+    - pattern: "(?i)(tv|television)"
+      type: tv
+  
+  # MAC vendor matching (first 3 bytes)
+  mac_vendor_rules:
+    - vendor: "Apple"
+      type: smartphone
+    - vendor: "Samsung"
+      type: smartphone
+    - vendor: "Hikvision"
+      type: camera
+    - vendor: "Dahua"
+      type: camera
+    - vendor: "TP-Link"
+      type: iot
+
+# Devices to exclude from discovery
+exclude:
+  ips:
+    - 10.10.1.159  # Monitoring server itself
+  mac_prefixes: []
+
+# Logging
+logging:
+  level: INFO
+  file: /var/log/network_discovery.log
