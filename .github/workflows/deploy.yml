@@ -5,12 +5,12 @@ on:
     branches:
       - main
       - master
-  workflow_dispatch: # Permite execução manual
+  workflow_dispatch:  # Permite execução manual
     inputs:
       environment:
-        description: "Target environment"
+        description: 'Target environment'
         required: true
-        default: "production"
+        default: 'production'
         type: choice
         options:
           - production
@@ -20,33 +20,52 @@ env:
   DEPLOY_USER: root
   DEPLOY_HOST: 10.10.1.159
   DEPLOY_PATH: /root/observability-stack
-  SSH_KEY_NAME: DEPLOY_SSH_KEY
 
 jobs:
   deploy:
     name: Deploy Observability Stack
     runs-on: ubuntu-latest
-
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
+        
+      - name: Verify SSH key secret exists
+        run: |
+          if [ -z "${{ secrets.DEPLOY_SSH_KEY }}" ]; then
+            echo "❌ ERROR: DEPLOY_SSH_KEY secret not configured"
+            echo ""
+            echo "Please configure the secret:"
+            echo "1. Run: bash scripts/setup_cicd.sh"
+            echo "2. Go to: Settings → Secrets → Actions"
+            echo "3. Add secret: DEPLOY_SSH_KEY"
+            echo ""
+            exit 1
+          fi
+          echo "✅ SSH key secret found"
+        
       - name: Setup SSH key
         run: |
           mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
           echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H ${{ env.DEPLOY_HOST }} >> ~/.ssh/known_hosts
-
+          
+      - name: Add server to known hosts
+        run: |
+          ssh-keyscan -H ${{ env.DEPLOY_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+          
       - name: Test SSH connection
         run: |
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+          ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=10 \
             ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} \
-            'echo "SSH connection successful"'
-
+            'echo "✅ SSH connection successful"'
+            
       - name: Create deployment package
         run: |
-          # Excluir ficheiros desnecessários
+          echo "Creating deployment package..."
           tar --exclude='.git' \
               --exclude='*_data' \
               --exclude='*.tar.gz' \
@@ -54,27 +73,37 @@ jobs:
               --exclude='__pycache__' \
               -czf observability-stack.tar.gz .
           ls -lh observability-stack.tar.gz
-
+          
       - name: Upload package to server
         run: |
+          echo "Uploading package to server..."
           scp -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
             observability-stack.tar.gz \
             ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }}:/tmp/
-
+          echo "✅ Package uploaded"
+            
       - name: Backup current deployment
         run: |
-          ssh -i ~/.ssh/deploy_key ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} << 'EOF'
+          echo "Creating backup of current deployment..."
+          ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} << 'ENDSSH'
             if [ -d "${{ env.DEPLOY_PATH }}" ]; then
-              echo "Creating backup of current deployment..."
               BACKUP_NAME="observability-stack-backup-$(date +%Y%m%d-%H%M%S)"
               cp -r ${{ env.DEPLOY_PATH }} /root/$BACKUP_NAME
-              echo "Backup created: /root/$BACKUP_NAME"
+              echo "✅ Backup created: /root/$BACKUP_NAME"
+            else
+              echo "ℹ️  No existing deployment to backup"
             fi
-          EOF
-
+          ENDSSH
+          
       - name: Extract and deploy
         run: |
-          ssh -i ~/.ssh/deploy_key ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} << 'EOF'
+          echo "Extracting deployment package..."
+          ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} << 'ENDSSH'
             set -e
             
             # Criar diretório se não existir
@@ -85,100 +114,152 @@ jobs:
             tar -xzf /tmp/observability-stack.tar.gz
             
             # Dar permissões de execução
-            chmod +x setup.sh diagnose.sh scripts/*.sh
+            chmod +x setup.sh diagnose.sh scripts/*.sh 2>/dev/null || true
             
             # Limpar ficheiro temporário
             rm /tmp/observability-stack.tar.gz
             
-            echo "Deployment extracted successfully"
-          EOF
-
+            echo "✅ Deployment extracted successfully"
+          ENDSSH
+          
       - name: Verify environment files
         run: |
-          ssh -i ~/.ssh/deploy_key ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} << 'EOF'
+          echo "Verifying environment configuration..."
+          ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} << 'ENDSSH'
             cd ${{ env.DEPLOY_PATH }}
             
             # Verificar se .env existe
             if [ ! -f .env ]; then
-              echo "⚠️  WARNING: .env file not found. Creating from example..."
-              cp .env.example .env
-              echo "❌ CRITICAL: Configure .env with webhooks before starting stack!"
-              exit 1
+              echo "⚠️  WARNING: .env file not found"
+              if [ -f .env.example ]; then
+                echo "Creating .env from example..."
+                cp .env.example .env
+                echo "❌ CRITICAL: Configure .env with webhooks before starting stack!"
+                echo "Run: ssh root@${{ env.DEPLOY_HOST }} 'nano ${{ env.DEPLOY_PATH }}/.env'"
+                exit 1
+              else
+                echo "❌ CRITICAL: .env.example not found!"
+                exit 1
+              fi
             fi
             
             # Verificar se hosts.txt existe
             if [ ! -f hosts.txt ]; then
-              echo "⚠️  WARNING: hosts.txt not found. Creating from example..."
-              cp hosts.txt.example hosts.txt
-              echo "❌ CRITICAL: Configure hosts.txt before deploying monitors!"
-              exit 1
+              echo "⚠️  WARNING: hosts.txt not found"
+              if [ -f hosts.txt.example ]; then
+                echo "Creating hosts.txt from example..."
+                cp hosts.txt.example hosts.txt
+                echo "❌ CRITICAL: Configure hosts.txt before deploying monitors!"
+                echo "Run: ssh root@${{ env.DEPLOY_HOST }} 'nano ${{ env.DEPLOY_PATH }}/hosts.txt'"
+                exit 1
+              else
+                echo "❌ CRITICAL: hosts.txt.example not found!"
+                exit 1
+              fi
             fi
             
             echo "✅ Environment files verified"
-          EOF
-
+          ENDSSH
+          
       - name: Restart Docker stack
         run: |
-          ssh -i ~/.ssh/deploy_key ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} << 'EOF'
+          echo "Restarting Docker stack..."
+          ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} << 'ENDSSH'
             cd ${{ env.DEPLOY_PATH }}
             
             # Verificar se Docker está instalado
             if ! command -v docker &> /dev/null; then
               echo "❌ Docker not installed on target server"
+              echo "Install with: apt install -y docker.io docker-compose"
               exit 1
             fi
             
             # Parar stack atual
             echo "Stopping current stack..."
-            docker compose down || true
+            docker compose down 2>/dev/null || docker-compose down 2>/dev/null || true
             
             # Pull de novas imagens
             echo "Pulling latest images..."
-            docker compose pull
+            docker compose pull 2>/dev/null || docker-compose pull 2>/dev/null
             
             # Iniciar stack
             echo "Starting stack..."
-            docker compose up -d
+            docker compose up -d 2>/dev/null || docker-compose up -d 2>/dev/null
             
             # Aguardar containers iniciarem
-            sleep 10
+            echo "Waiting for containers to start..."
+            sleep 15
             
             # Verificar status
-            docker compose ps
-          EOF
-
+            echo ""
+            echo "Container status:"
+            docker compose ps 2>/dev/null || docker-compose ps 2>/dev/null
+          ENDSSH
+          
       - name: Health check
         run: |
-          ssh -i ~/.ssh/deploy_key ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} << 'EOF'
+          echo "Running health check..."
+          ssh -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=no \
+            ${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }} << 'ENDSSH'
             cd ${{ env.DEPLOY_PATH }}
             
             # Verificar se Python está disponível
             if command -v python3 &> /dev/null; then
-              echo "Running health check..."
-              python3 scripts/check_health.py || echo "⚠️  Health check failed"
+              echo "Running automated health check..."
+              python3 scripts/check_health.py 2>/dev/null || echo "⚠️  Health check script failed"
             else
-              echo "⚠️  Python3 not available, skipping health check"
-              echo "Verifying containers manually..."
-              docker compose ps
+              echo "⚠️  Python3 not available, skipping automated health check"
+              echo ""
+              echo "Manual verification:"
+              docker compose ps 2>/dev/null || docker-compose ps 2>/dev/null
             fi
-          EOF
-
+          ENDSSH
+          
       - name: Cleanup SSH key
         if: always()
         run: |
           rm -f ~/.ssh/deploy_key
-
+          
       - name: Deployment summary
         if: success()
         run: |
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "✅ Deployment successful!"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo ""
           echo "Services available at:"
-          echo "  - Grafana: http://${{ env.DEPLOY_HOST }}:3000"
-          echo "  - Prometheus: http://${{ env.DEPLOY_HOST }}:9990"
-          echo "  - Alertmanager: http://${{ env.DEPLOY_HOST }}:9093"
+          echo "  🎨 Grafana:      http://${{ env.DEPLOY_HOST }}:3000"
+          echo "  📊 Prometheus:   http://${{ env.DEPLOY_HOST }}:9990"
+          echo "  🔔 Alertmanager: http://${{ env.DEPLOY_HOST }}:9093"
           echo ""
           echo "Next steps:"
-          echo "  1. Verify all containers are running"
+          echo "  1. Access Grafana (admin/admin)"
           echo "  2. Check Prometheus targets: http://${{ env.DEPLOY_HOST }}:9990/targets"
-          echo "  3. Access Grafana dashboards"
+          echo "  3. View dashboards"
+          echo ""
+          
+      - name: Deployment failed
+        if: failure()
+        run: |
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "❌ Deployment failed!"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "Troubleshooting:"
+          echo "  1. Check the logs above for specific errors"
+          echo "  2. Verify SSH access: ssh root@${{ env.DEPLOY_HOST }}"
+          echo "  3. Check server logs: ssh root@${{ env.DEPLOY_HOST }} 'cd ${{ env.DEPLOY_PATH }} && docker compose logs'"
+          echo ""
+          echo "Rollback if needed:"
+          echo "  ssh root@${{ env.DEPLOY_HOST }}"
+          echo "  cd /root"
+          echo "  ls -d observability-stack-backup-*"
+          echo "  mv observability-stack-backup-YYYYMMDD-HHMMSS observability-stack"
+          echo ""
