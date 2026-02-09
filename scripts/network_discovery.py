@@ -5,6 +5,7 @@ Scans configured subnets and automatically discovers network devices
 """
 
 import json
+import os
 import yaml
 import subprocess
 import re
@@ -14,13 +15,13 @@ from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Optional
 
-# Paths
+# Paths - configurable via environment
 SCRIPT_DIR = Path(__file__).parent
-PROJECT_ROOT = SCRIPT_DIR.parent
-CONFIG_FILE = PROJECT_ROOT / "network_discovery.yml"
-DEVICES_FILE = PROJECT_ROOT / "network_devices.txt"
-DISCOVERED_DB = PROJECT_ROOT / "network_devices_discovered.json"
-TARGETS_FILE = PROJECT_ROOT / "prometheus" / "network_devices.json"
+PROJECT_ROOT = Path(os.environ.get('PROJECT_ROOT', SCRIPT_DIR.parent))
+CONFIG_FILE = Path(os.environ.get('CONFIG_FILE', PROJECT_ROOT / "network_discovery.yml"))
+DEVICES_FILE = Path(os.environ.get('DEVICES_FILE', PROJECT_ROOT / "network_devices.txt"))
+DISCOVERED_DB = Path(os.environ.get('DISCOVERED_DB', PROJECT_ROOT / "network_devices_discovered.json"))
+TARGETS_FILE = Path(os.environ.get('TARGETS_FILE', PROJECT_ROOT / "prometheus" / "network_devices.json"))
 
 # Setup logging
 logging.basicConfig(
@@ -71,16 +72,22 @@ class NetworkDiscovery:
         return manual_ips
     
     def scan_subnet(self, subnet: str) -> List[Dict]:
-        """Scan subnet using nmap"""
+        """Scan subnet using nmap with ARP discovery"""
         logger.info(f"Scanning subnet: {subnet}")
-        
+
         try:
-            # nmap scan: ping + basic port scan
+            # nmap scan: ARP discovery (works best for local network)
+            # -PR: ARP ping (requires raw sockets/root for remote subnets)
+            # Falls back to TCP connect for hosts that don't respond to ARP
             cmd = [
                 'nmap',
                 '-sn',  # Ping scan only
-                '-PR',  # ARP ping
-                '--host-timeout', '30s',
+                '-PR',  # ARP ping (best for local network)
+                '-PE',  # ICMP echo (fallback)
+                '-T4',  # Faster timing
+                '--min-rate', '300',
+                '--max-retries', '2',
+                '--host-timeout', '10s',
                 subnet
             ]
             
@@ -92,12 +99,13 @@ class NetworkDiscovery:
             )
             
             devices = self.parse_nmap_output(result.stdout)
-            
-            # For each device, do port scan to help classify
+
+            # Get hostnames (skip port scan for speed)
             for device in devices:
-                device['ports'] = self.scan_ports(device['ip'])
-                device['hostname'] = self.get_hostname(device['ip'])
-            
+                device['ports'] = []  # Skip individual port scans for speed
+                if not device.get('hostname'):
+                    device['hostname'] = self.get_hostname(device['ip'])
+
             return devices
             
         except subprocess.TimeoutExpired:
@@ -147,14 +155,14 @@ class NetworkDiscovery:
         """Quick port scan for common ports"""
         common_ports = [22, 80, 443, 554, 3389, 445, 139, 8000, 8080]
         open_ports = []
-        
+
         try:
             cmd = [
                 'nmap',
                 '-p', ','.join(map(str, common_ports)),
                 '--open',
-                '-T4',
-                '--host-timeout', '10s',
+                '-T5',  # Fastest timing
+                '--host-timeout', '5s',
                 ip
             ]
             
@@ -312,6 +320,23 @@ class NetworkDiscovery:
         logger.info(f"Discovery complete: {new_devices} new, {updated_devices} updated")
         logger.info("=" * 60)
     
+    def _read_all_devices(self):
+        """Read all devices from network_devices.txt"""
+        devices = []
+        if DEVICES_FILE.exists():
+            with open(DEVICES_FILE, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#'):
+                        parts = [p.strip() for p in line.split(',')]
+                        if len(parts) == 3:
+                            devices.append({
+                                'ip': parts[0],
+                                'name': parts[1],
+                                'type': parts[2]
+                            })
+        return devices
+
     def update_devices_file(self):
         """Update network_devices.txt with discovered devices"""
         # Read existing manual entries
@@ -340,13 +365,48 @@ class NetworkDiscovery:
     
     def generate_targets(self):
         """Generate Prometheus targets JSON"""
-        from manage_network_devices import read_devices, generate_targets, write_targets
-        
-        devices = read_devices()
-        targets = generate_targets(devices)
-        write_targets(targets)
-        
+        devices = self._read_all_devices()
+        targets = []
+
+        for device in devices:
+            targets.append({
+                'targets': [device['ip']],
+                'labels': {
+                    'device_name': device['name'],
+                    'device_type': device['type'],
+                    'job': 'blackbox_ping'
+                }
+            })
+
+        # Write targets
+        TARGETS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with open(TARGETS_FILE, 'w') as f:
+            json.dump(targets, f, indent=2)
+
         logger.info(f"Generated {len(targets)} Prometheus targets")
+
+        # Reload Prometheus
+        self._reload_prometheus()
+
+    def _reload_prometheus(self):
+        """Reload Prometheus configuration"""
+        prometheus_host = os.environ.get('PROMETHEUS_HOST', 'prometheus')
+        prometheus_port = os.environ.get('PROMETHEUS_PORT', '9090')
+        prometheus_url = f"http://{prometheus_host}:{prometheus_port}/-/reload"
+
+        try:
+            result = subprocess.run(
+                ['curl', '-s', '-X', 'POST', prometheus_url],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if result.returncode == 0:
+                logger.info("Prometheus configuration reloaded")
+            else:
+                logger.warning("Could not reload Prometheus")
+        except Exception as e:
+            logger.warning(f"Could not reload Prometheus: {e}")
 
 
 def main():

@@ -202,6 +202,34 @@ services:
     networks:
       - monitoring
 
+  # Network Discovery - Automatic device discovery with nmap
+  network-discovery:
+    build:
+      context: .
+      dockerfile: network-discovery/Dockerfile
+    container_name: network-discovery
+    restart: unless-stopped
+    network_mode: host
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    environment:
+      - PROMETHEUS_HOST=10.10.1.159
+      - PROMETHEUS_PORT=9990
+      - SCAN_INTERVAL=300
+      - PROJECT_ROOT=/app
+      - DEVICES_FILE=/data/network_devices.txt
+      - DISCOVERED_DB=/data/network_devices_discovered.json
+      - TARGETS_FILE=/data/network_devices.json
+    volumes:
+      - ./network_devices.txt:/data/network_devices.txt
+      - ./network_devices_discovered.json:/data/network_devices_discovered.json
+      - ./prometheus/network_devices.json:/data/network_devices.json
+      - ./network_discovery.yml:/app/network_discovery.yml:ro
+    depends_on:
+      - prometheus
+      - blackbox-exporter
+
 
 volumes:
   prometheus_data:

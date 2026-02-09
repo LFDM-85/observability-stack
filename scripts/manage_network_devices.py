@@ -17,6 +17,10 @@ PROJECT_ROOT = SCRIPT_DIR.parent
 DEVICES_FILE = PROJECT_ROOT / "network_devices.txt"
 TARGETS_FILE = PROJECT_ROOT / "prometheus" / "network_devices.json"
 
+# Configuration from environment
+PROMETHEUS_HOST = os.environ.get('PROMETHEUS_HOST', 'prometheus')
+PROMETHEUS_PORT = os.environ.get('PROMETHEUS_PORT', '9090')
+
 def validate_ip(ip_str):
     """Validate IP address"""
     try:
@@ -89,15 +93,16 @@ def write_targets(targets):
 
 def reload_prometheus():
     """Reload Prometheus configuration"""
+    prometheus_url = f"http://{PROMETHEUS_HOST}:{PROMETHEUS_PORT}/-/reload"
     try:
         # Try to reload via HTTP API
         result = subprocess.run(
-            ['curl', '-X', 'POST', 'http://localhost:9990/-/reload'],
+            ['curl', '-s', '-X', 'POST', prometheus_url],
             capture_output=True,
             text=True,
             timeout=5
         )
-        
+
         if result.returncode == 0:
             print("✅ Prometheus configuration reloaded")
         else:
@@ -147,7 +152,7 @@ def main():
     print("=" * 50)
     print()
     print("Next steps:")
-    print("  1. Check Prometheus targets: http://localhost:9990/targets")
+    print(f"  1. Check Prometheus targets: http://{PROMETHEUS_HOST}:{PROMETHEUS_PORT}/targets")
     print("  2. View dashboard in Grafana")
     print()
 
