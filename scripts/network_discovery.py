@@ -321,8 +321,9 @@ class NetworkDiscovery:
         logger.info("=" * 60)
     
     def _read_all_devices(self):
-        """Read all devices from network_devices.txt"""
+        """Read all devices from network_devices.txt (deduplicated)"""
         devices = []
+        seen_ips = set()
         if DEVICES_FILE.exists():
             with open(DEVICES_FILE, 'r') as f:
                 for line in f:
@@ -330,36 +331,54 @@ class NetworkDiscovery:
                     if line and not line.startswith('#'):
                         parts = [p.strip() for p in line.split(',')]
                         if len(parts) == 3:
-                            devices.append({
-                                'ip': parts[0],
-                                'name': parts[1],
-                                'type': parts[2]
-                            })
+                            ip = parts[0]
+                            # Skip duplicates (keep first occurrence)
+                            if ip not in seen_ips:
+                                seen_ips.add(ip)
+                                devices.append({
+                                    'ip': ip,
+                                    'name': parts[1],
+                                    'type': parts[2]
+                                })
         return devices
 
     def update_devices_file(self):
         """Update network_devices.txt with discovered devices"""
-        # Read existing manual entries
+        # Read existing manual entries (stop at AUTO-DISCOVERED marker)
         manual_lines = []
+        manual_ips = set()
+        in_auto_section = False
+
         if DEVICES_FILE.exists():
             with open(DEVICES_FILE, 'r') as f:
                 for line in f:
                     line_stripped = line.strip()
-                    if line_stripped and not line_stripped.startswith('# AUTO-DISCOVERED'):
-                        manual_lines.append(line)
-        
+                    # Stop reading manual entries when we hit auto-discovered section
+                    if '# AUTO-DISCOVERED' in line_stripped:
+                        in_auto_section = True
+                        continue
+                    if in_auto_section:
+                        continue
+                    manual_lines.append(line)
+                    # Track manual IPs to avoid duplicates
+                    if line_stripped and not line_stripped.startswith('#'):
+                        parts = line_stripped.split(',')
+                        if len(parts) >= 1:
+                            manual_ips.add(parts[0].strip())
+
         # Write back with auto-discovered section
         with open(DEVICES_FILE, 'w') as f:
             # Write manual entries
             for line in manual_lines:
                 f.write(line)
-            
-            # Write auto-discovered section
-            if self.discovered_devices:
+
+            # Write auto-discovered section (excluding IPs already in manual section)
+            auto_devices = {ip: info for ip, info in self.discovered_devices.items()
+                          if info.get('auto_discovered', False) and ip not in manual_ips}
+            if auto_devices:
                 f.write('\n# AUTO-DISCOVERED DEVICES (managed automatically)\n')
-                for ip, info in sorted(self.discovered_devices.items()):
-                    if info.get('auto_discovered', False):
-                        f.write(f"{ip},{info['name']},{info['type']}\n")
+                for ip, info in sorted(auto_devices.items()):
+                    f.write(f"{ip},{info['name']},{info['type']}\n")
         
         logger.info(f"Updated {DEVICES_FILE}")
     

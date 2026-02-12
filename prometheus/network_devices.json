@@ -21,66 +21,6 @@
   },
   {
     "targets": [
-      "192.168.90.122"
-    ],
-    "labels": {
-      "device_name": "Device-122",
-      "device_type": "unknown",
-      "job": "blackbox_ping"
-    }
-  },
-  {
-    "targets": [
-      "192.168.90.125"
-    ],
-    "labels": {
-      "device_name": "Device-125",
-      "device_type": "unknown",
-      "job": "blackbox_ping"
-    }
-  },
-  {
-    "targets": [
-      "192.168.90.207"
-    ],
-    "labels": {
-      "device_name": "Device-207",
-      "device_type": "unknown",
-      "job": "blackbox_ping"
-    }
-  },
-  {
-    "targets": [
-      "192.168.90.210"
-    ],
-    "labels": {
-      "device_name": "Device-210",
-      "device_type": "unknown",
-      "job": "blackbox_ping"
-    }
-  },
-  {
-    "targets": [
-      "192.168.90.215"
-    ],
-    "labels": {
-      "device_name": "Device-215",
-      "device_type": "unknown",
-      "job": "blackbox_ping"
-    }
-  },
-  {
-    "targets": [
-      "192.168.90.233"
-    ],
-    "labels": {
-      "device_name": "Device-233",
-      "device_type": "unknown",
-      "job": "blackbox_ping"
-    }
-  },
-  {
-    "targets": [
       "10.10.1.112"
     ],
     "labels": {
@@ -111,90 +51,10 @@
   },
   {
     "targets": [
-      "10.10.1.152"
+      "10.10.1.143"
     ],
     "labels": {
-      "device_name": "Device-152",
-      "device_type": "unknown",
-      "job": "blackbox_ping"
-    }
-  },
-  {
-    "targets": [
-      "10.10.1.156"
-    ],
-    "labels": {
-      "device_name": "Device-156",
-      "device_type": "unknown",
-      "job": "blackbox_ping"
-    }
-  },
-  {
-    "targets": [
-      "10.10.1.172"
-    ],
-    "labels": {
-      "device_name": "Device-172",
-      "device_type": "unknown",
-      "job": "blackbox_ping"
-    }
-  },
-  {
-    "targets": [
-      "10.10.1.177"
-    ],
-    "labels": {
-      "device_name": "Device-177",
-      "device_type": "unknown",
-      "job": "blackbox_ping"
-    }
-  },
-  {
-    "targets": [
-      "192.168.90.104"
-    ],
-    "labels": {
-      "device_name": "Device-104",
-      "device_type": "unknown",
-      "job": "blackbox_ping"
-    }
-  },
-  {
-    "targets": [
-      "192.168.90.106"
-    ],
-    "labels": {
-      "device_name": "Device-106",
-      "device_type": "unknown",
-      "job": "blackbox_ping"
-    }
-  },
-  {
-    "targets": [
-      "10.10.1.112"
-    ],
-    "labels": {
-      "device_name": "Device-112",
-      "device_type": "unknown",
-      "job": "blackbox_ping"
-    }
-  },
-  {
-    "targets": [
-      "10.10.1.129"
-    ],
-    "labels": {
-      "device_name": "Device-129",
-      "device_type": "unknown",
-      "job": "blackbox_ping"
-    }
-  },
-  {
-    "targets": [
-      "10.10.1.139"
-    ],
-    "labels": {
-      "device_name": "HP-Laptop-15s",
+      "device_name": "Device-143",
       "device_type": "unknown",
       "job": "blackbox_ping"
     }
@@ -221,6 +81,16 @@
   },
   {
     "targets": [
+      "10.10.1.171"
+    ],
+    "labels": {
+      "device_name": "Device-171",
+      "device_type": "unknown",
+      "job": "blackbox_ping"
+    }
+  },
+  {
+    "targets": [
       "10.10.1.172"
     ],
     "labels": {
@@ -235,6 +105,16 @@
     ],
     "labels": {
       "device_name": "Device-177",
+      "device_type": "unknown",
+      "job": "blackbox_ping"
+    }
+  },
+  {
+    "targets": [
+      "10.10.1.182"
+    ],
+    "labels": {
+      "device_name": "Device-182",
       "device_type": "unknown",
       "job": "blackbox_ping"
     }
