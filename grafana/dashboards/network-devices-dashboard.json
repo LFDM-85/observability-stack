@@ -95,7 +95,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "probe_success{job=\"blackbox_ping\"}",
+          "expr": "max by (instance, device_name, device_type) (probe_success{job=\"blackbox_ping\"})",
           "legendFormat": "{{device_name}} ({{instance}})",
           "range": true,
           "refId": "A"
@@ -185,7 +185,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "probe_duration_seconds{job=\"blackbox_ping\"}",
+          "expr": "max by (instance, device_name, device_type) (probe_duration_seconds{job=\"blackbox_ping\"})",
           "legendFormat": "{{device_name}}",
           "range": true,
           "refId": "A"
@@ -255,7 +255,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "avg_over_time(probe_success{job=\"blackbox_ping\"}[24h]) * 100",
+          "expr": "max by (instance, device_name, device_type) (avg_over_time(probe_success{job=\"blackbox_ping\"}[24h]) * 100)",
           "legendFormat": "{{device_name}}",
           "range": true,
           "refId": "A"
@@ -394,7 +394,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "probe_success{job=\"blackbox_ping\"}",
+          "expr": "max by (instance, device_name, device_type) (probe_success{job=\"blackbox_ping\"})",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
@@ -407,7 +407,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "probe_duration_seconds{job=\"blackbox_ping\"}",
+          "expr": "max by (instance, device_name, device_type) (probe_duration_seconds{job=\"blackbox_ping\"})",
           "format": "table",
           "hide": false,
           "instant": true,
@@ -421,7 +421,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "avg_over_time(probe_success{job=\"blackbox_ping\"}[24h]) * 100",
+          "expr": "max by (instance, device_name, device_type) (avg_over_time(probe_success{job=\"blackbox_ping\"}[24h]) * 100)",
           "format": "table",
           "hide": false,
           "instant": true,

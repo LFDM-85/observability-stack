@@ -392,8 +392,7 @@ class NetworkDiscovery:
                 'targets': [device['ip']],
                 'labels': {
                     'device_name': device['name'],
-                    'device_type': device['type'],
-                    'job': 'blackbox_ping'
+                    'device_type': device['type']
                 }
             })
 

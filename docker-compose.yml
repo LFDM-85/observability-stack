@@ -21,6 +21,7 @@ services:
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
       - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
       - '--web.enable-remote-write-receiver'
       - '--enable-feature=otlp-write-receiver'
     restart: unless-stopped

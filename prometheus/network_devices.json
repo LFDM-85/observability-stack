@@ -6,7 +6,6 @@
     "labels": {
       "device_name": "OPNsense LAN",
       "device_type": "router",
-      "job": "blackbox_ping"
     }
   },
   {
@@ -16,7 +15,6 @@
     "labels": {
       "device_name": "OPNsense WAN",
       "device_type": "router",
-      "job": "blackbox_ping"
     }
   },
   {
@@ -26,7 +24,6 @@
     "labels": {
       "device_name": "Device-112",
       "device_type": "unknown",
-      "job": "blackbox_ping"
     }
   },
   {
@@ -36,7 +33,6 @@
     "labels": {
       "device_name": "Device-129",
       "device_type": "unknown",
-      "job": "blackbox_ping"
     }
   },
   {
@@ -46,7 +42,6 @@
     "labels": {
       "device_name": "HP-Laptop-15s",
       "device_type": "unknown",
-      "job": "blackbox_ping"
     }
   },
   {
@@ -56,7 +51,6 @@
     "labels": {
       "device_name": "Device-143",
       "device_type": "unknown",
-      "job": "blackbox_ping"
     }
   },
   {
@@ -66,7 +60,6 @@
     "labels": {
       "device_name": "Device-152",
       "device_type": "unknown",
-      "job": "blackbox_ping"
     }
   },
   {
@@ -76,7 +69,6 @@
     "labels": {
       "device_name": "Device-156",
       "device_type": "unknown",
-      "job": "blackbox_ping"
     }
   },
   {
@@ -86,7 +78,6 @@
     "labels": {
       "device_name": "Device-171",
       "device_type": "unknown",
-      "job": "blackbox_ping"
     }
   },
   {
@@ -96,7 +87,6 @@
     "labels": {
       "device_name": "Device-172",
       "device_type": "unknown",
-      "job": "blackbox_ping"
     }
   },
   {
@@ -106,7 +96,6 @@
     "labels": {
       "device_name": "Device-177",
       "device_type": "unknown",
-      "job": "blackbox_ping"
     }
   },
   {
@@ -116,7 +105,6 @@
     "labels": {
       "device_name": "Device-182",
       "device_type": "unknown",
-      "job": "blackbox_ping"
     }
   },
   {
@@ -126,7 +114,6 @@
     "labels": {
       "device_name": "Device-104",
       "device_type": "unknown",
-      "job": "blackbox_ping"
     }
   },
   {
@@ -136,7 +123,6 @@
     "labels": {
       "device_name": "Device-106",
       "device_type": "unknown",
-      "job": "blackbox_ping"
     }
   },
   {
@@ -146,7 +132,6 @@
     "labels": {
       "device_name": "Device-111",
       "device_type": "unknown",
-      "job": "blackbox_ping"
     }
   },
   {
@@ -156,7 +141,6 @@
     "labels": {
       "device_name": "Device-253",
       "device_type": "unknown",
-      "job": "blackbox_ping"
     }
   },
   {
@@ -166,7 +150,6 @@
     "labels": {
       "device_name": "Device-254",
       "device_type": "unknown",
-      "job": "blackbox_ping"
     }
   },
   {
@@ -176,7 +159,6 @@
     "labels": {
       "device_name": "Device-77",
       "device_type": "unknown",
-      "job": "blackbox_ping"
     }
   },
   {
@@ -186,7 +168,6 @@
     "labels": {
       "device_name": "Device-78",
       "device_type": "unknown",
-      "job": "blackbox_ping"
     }
   }
 ]
