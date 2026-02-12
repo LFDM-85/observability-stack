@@ -13,13 +13,6 @@ ingester:
   trace_idle_period: 30s               # ... when 30s has occurred with no new data
 
 
-compactor:
-  compaction:
-    compaction_window: 1h              # blocks in this time window will be compacted together
-    max_block_bytes: 100_000_000       # maximum size of compacted blocks
-    block_retention: 1h
-    compacted_block_retention: 10m
-
 storage:
   trace:
     backend: local                     # backend configuration to use
@@ -27,3 +20,11 @@ storage:
       path: /var/tempo/wal             # where to store the the wal locally
     local:
       path: /var/tempo/blocks
+    block:
+      version: vParquet4
+    compactor:
+      compaction:
+        compaction_window: 1h
+        max_block_bytes: 100_000_000
+        block_retention: 1h
+        compacted_block_retention: 10m
